@@ -59,7 +59,9 @@ export default function QRScanner({ enabled, onDecode }) {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        videoRef.current.play().catch((err) => {
+          console.warn("Video play() failed:", err);
+        });
       }
       setActive(true);
       rafRef.current = requestAnimationFrame(scanFrame);
@@ -90,27 +92,43 @@ export default function QRScanner({ enabled, onDecode }) {
       className="rounded-xl border p-6 flex flex-col items-center text-center"
       style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
     >
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="w-full max-w-sm overflow-hidden rounded-lg"
-        style={{ display: active ? "block" : "none" }}
-      />
-      <canvas ref={canvasRef} style={{ display: "none" }} />
+      <div
+        className="w-full max-w-sm rounded-lg"
+        style={{ position: "relative", height: "300px", minHeight: "300px", overflow: "visible", backgroundColor: "#000" }}
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{
+            width: "100%",
+            height: "300px",
+            minHeight: "300px",
+            display: "block",
+            backgroundColor: "#000",
+            objectFit: "cover",
+            borderRadius: "0.5rem",
+            visibility: active ? "visible" : "hidden",
+            opacity: active ? 1 : 0,
+          }}
+        />
+        <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {!active && (
-        <>
-          <span className="text-4xl mb-3">📷</span>
-          <p className="text-sm font-medium" style={{ color: "var(--text)" }}>
-            {enabled ? "Ready to scan tickets" : "Select an event to begin"}
-          </p>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            Point the camera at a student's ticket QR code.
-          </p>
-        </>
-      )}
+        {!active && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
+            <span className="text-4xl mb-3">📷</span>
+            {/* Fixed light colors, not theme tokens — this sits over the
+                always-black video backdrop regardless of light/dark mode. */}
+            <p className="text-sm font-medium" style={{ color: "#F5F5F5" }}>
+              {enabled ? "Ready to scan tickets" : "Select an event to begin"}
+            </p>
+            <p className="text-sm mt-1" style={{ color: "#A3A3A3" }}>
+              Point the camera at a student's ticket QR code.
+            </p>
+          </div>
+        )}
+      </div>
 
       {error && (
         <p className="text-sm rounded-md px-3 py-2 border mt-3" style={{ color: "var(--accent-dark)", background: "var(--accent-bg)", borderColor: "var(--accent-border)" }}>
