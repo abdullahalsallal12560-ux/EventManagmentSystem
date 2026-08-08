@@ -7,7 +7,7 @@ import { getAllClubs } from "../data/clubsStore";
 // Full-width overlay, not a page. Events + clubs are fetched once when the
 // overlay opens; every keystroke after that just filters those two arrays
 // in memory — no repeated Firestore queries while typing.
-export default function SearchOverlay({ open, onClose }) {
+export default function SearchOverlay({ open, onClose, initialQuery = "" }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [events, setEvents] = useState([]);
@@ -18,7 +18,7 @@ export default function SearchOverlay({ open, onClose }) {
   useEffect(() => {
     if (!open) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setQuery("");
+    setQuery(initialQuery);
     setLoading(true);
     Promise.all([getAllEvents(), getAllClubs()]).then(([e, c]) => {
       setEvents(e);
@@ -27,6 +27,7 @@ export default function SearchOverlay({ open, onClose }) {
     });
     const focusTimer = setTimeout(() => inputRef.current?.focus(), 50);
     return () => clearTimeout(focusTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {

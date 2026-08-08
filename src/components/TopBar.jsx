@@ -42,6 +42,7 @@ export default function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchDraft, setSearchDraft] = useState("");
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -68,6 +69,16 @@ export default function TopBar() {
     if (location.pathname !== "/dashboard") navigate("/dashboard");
   }
 
+  function handleSearchDraftChange(value) {
+    setSearchDraft(value);
+    setSearchOpen(true);
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearchDraft("");
+  }
+
   return (
     <header
       className="sticky top-0 z-40 border-b px-4 sm:px-6 py-3 flex items-center justify-between gap-4"
@@ -83,6 +94,25 @@ export default function TopBar() {
           <Menu size={20} />
         </button>
         <Logo />
+
+        <div className="hidden md:flex items-center gap-2 relative">
+          <Search size={15} className="absolute left-3 pointer-events-none" style={{ color: "var(--text-muted)" }} />
+          <input
+            type="text"
+            value={searchDraft}
+            onFocus={() => setSearchOpen(true)}
+            onChange={(e) => handleSearchDraftChange(e.target.value)}
+            placeholder="Search events and clubs..."
+            aria-label="Search events and clubs"
+            className="w-[280px] text-sm pl-9 pr-3 py-2 focus:outline-none placeholder:text-[var(--text-muted)]"
+            style={{
+              background: "var(--bg-subtle)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--text)",
+            }}
+          />
+        </div>
       </div>
 
       {links.length > 0 && (
@@ -107,7 +137,7 @@ export default function TopBar() {
       <div className="flex items-center gap-1">
         <button
           onClick={() => setSearchOpen(true)}
-          className="p-2 rounded-lg transition-colors hover:opacity-70"
+          className="md:hidden p-2 rounded-lg transition-colors hover:opacity-70"
           style={{ color: "var(--text-muted)" }}
           aria-label="Search events and clubs"
         >
@@ -214,7 +244,7 @@ export default function TopBar() {
         </div>
       )}
 
-      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <SearchOverlay open={searchOpen} onClose={closeSearch} initialQuery={searchDraft} />
     </header>
   );
 }

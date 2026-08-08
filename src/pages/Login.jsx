@@ -223,36 +223,34 @@ export default function Login() {
         </div>
       </div>
 
-      {import.meta.env.DEV && (
-        <div ref={devPanelRef} className="fixed bottom-3 left-3 z-40">
-          {devPanelOpen && (
-            <div
-              className="mb-2 rounded-lg border p-2 space-y-1 w-40"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}
-            >
-              {Object.keys(ROLE_LABELS).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleDevQuickFill(role)}
-                  className="block w-full text-left text-xs px-2 py-1.5 rounded hover:opacity-70"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {ROLE_LABELS[role]}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setDevPanelOpen((o) => !o)}
-            className="text-[11px] opacity-40 hover:opacity-70 transition-opacity"
-            style={{ color: "var(--text-faint)" }}
+      <div ref={devPanelRef} className="fixed bottom-3 left-3 z-40">
+        {devPanelOpen && (
+          <div
+            className="mb-2 rounded-lg border p-2 space-y-1 w-40"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-md)" }}
           >
-            Dev access
-          </button>
-        </div>
-      )}
+            {Object.keys(ROLE_LABELS).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => handleDevQuickFill(role)}
+                className="block w-full text-left text-xs px-2 py-1.5 rounded hover:opacity-70"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {ROLE_LABELS[role]}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setDevPanelOpen((o) => !o)}
+          className="text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80"
+          style={{ borderColor: "var(--border)", color: "var(--text-muted)", background: "var(--bg-card)" }}
+        >
+          Demo Accounts
+        </button>
+      </div>
     </div>
   );
 }
