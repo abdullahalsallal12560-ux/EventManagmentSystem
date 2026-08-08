@@ -3,11 +3,12 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { getEventsByStatus, EVENT_STATUS } from "../data/eventsStore";
 import { getAllClubs } from "../data/clubsStore";
-import { registerForEvent, getRegistrationsByUser } from "../data/registrationsStore";
+import { registerForEvent, getRegistrationsByUser, getAllRegistrations } from "../data/registrationsStore";
 import { getAllCheckins } from "../data/checkinsStore";
 import PageShell from "../components/PageShell";
 import EventCard from "../components/EventCard";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import { CardSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 
@@ -42,23 +43,39 @@ export default function BrowseEvents() {
   const [clubs, setClubs] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [myCheckins, setMyCheckins] = useState([]);
+  const [registrationCounts, setRegistrationCounts] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busyEventId, setBusyEventId] = useState(null);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   async function loadData() {
     setLoading(true);
-    const [eventList, clubList, registrations, checkins] = await Promise.all([
-      getEventsByStatus(EVENT_STATUS.APPROVED),
-      getAllClubs(),
-      getRegistrationsByUser(user.id),
-      getAllCheckins(),
-    ]);
-    setEvents(eventList);
-    setClubs(clubList);
-    setMyRegistrations(registrations);
-    setMyCheckins(checkins);
-    setLoading(false);
+    setError(false);
+    try {
+      const [eventList, clubList, registrations, checkins, allRegistrations] = await Promise.all([
+        getEventsByStatus(EVENT_STATUS.APPROVED),
+        getAllClubs(),
+        getRegistrationsByUser(user.id),
+        getAllCheckins(),
+        getAllRegistrations(),
+      ]);
+      const counts = {};
+      allRegistrations.forEach((r) => {
+        if (r.status === "cancelled") return;
+        counts[r.eventId] = (counts[r.eventId] || 0) + 1;
+      });
+      setEvents(eventList);
+      setClubs(clubList);
+      setMyRegistrations(registrations);
+      setMyCheckins(checkins);
+      setRegistrationCounts(counts);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -154,6 +171,8 @@ export default function BrowseEvents() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <CardSkeleton /><CardSkeleton /><CardSkeleton />
         </div>
+      ) : error ? (
+        <ErrorState onRetry={loadData} />
       ) : visibleEvents.length === 0 ? (
         <EmptyState
           title={tab === "upcoming" ? "No upcoming events" : "No past events"}
@@ -168,6 +187,7 @@ export default function BrowseEvents() {
               clubName={clubName(event.clubId)}
               status={tab === "upcoming" ? statusForUpcoming(event) : statusForPast(event) || "missed"}
               onRegister={handleRegister}
+              registrationCount={registrationCounts[event.id] || 0}
             />
           ))}
         </div>

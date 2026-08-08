@@ -7,6 +7,7 @@ import { ROLES } from "../data/mockUsers";
 import { placeholderImageUrl } from "../data/placeholderImages";
 import PageShell from "../components/PageShell";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
@@ -18,6 +19,7 @@ export default function ManageClubs() {
   const [clubs, setClubs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   const [name, setName] = useState("");
@@ -32,10 +34,17 @@ export default function ManageClubs() {
 
   async function loadData() {
     setLoading(true);
-    const [clubsData, usersData] = await Promise.all([getAllClubs(), getAllUsers()]);
-    setClubs(clubsData);
-    setUsers(usersData);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const [clubsData, usersData] = await Promise.all([getAllClubs(), getAllUsers()]);
+      setClubs(clubsData);
+      setUsers(usersData);
+    } catch (err) {
+      console.error(err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -178,6 +187,8 @@ export default function ManageClubs() {
 
       {showSkeleton ? (
         <div className="space-y-3"><RowSkeleton /><RowSkeleton /></div>
+      ) : loadError ? (
+        <ErrorState onRetry={loadData} />
       ) : clubs.length === 0 ? (
         <EmptyState title="No clubs yet" description="Add one above to get started." />
       ) : visibleClubs.length === 0 ? (

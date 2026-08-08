@@ -9,12 +9,20 @@ const STATUS_CTA = {
   missed: { label: "Missed", disabled: true, style: "muted" },
   pending: { label: "Pending approval", disabled: true, style: "muted" },
   readonly: { label: "Students only", disabled: true, style: "muted" },
+  full: { label: "Event Full", disabled: true, style: "muted" },
 };
 
 // Cover image (16:9), club pill + date pill, title, 2-line description, and
 // a status-aware CTA. `status` drives the CTA: one of STATUS_CTA's keys.
-export default function EventCard({ event, clubName, status = "register", onRegister }) {
-  const cta = STATUS_CTA[status] || STATUS_CTA.register;
+// `registrationCount`, when passed alongside event.maxAttendees, drives the
+// "X spots left" badge and forces an open "register" CTA into "full".
+export default function EventCard({ event, clubName, status = "register", onRegister, registrationCount }) {
+  const hasCapacity = typeof registrationCount === "number" && typeof event.maxAttendees === "number";
+  const spotsLeft = hasCapacity ? event.maxAttendees - registrationCount : null;
+  const isFull = hasCapacity && spotsLeft <= 0;
+
+  const effectiveStatus = status === "register" && isFull ? "full" : status;
+  const cta = STATUS_CTA[effectiveStatus] || STATUS_CTA.register;
 
   const ctaStyle =
     cta.style === "success"
@@ -48,6 +56,11 @@ export default function EventCard({ event, clubName, status = "register", onRegi
           <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: "var(--bg-subtle)", color: "var(--text-muted)" }}>
             {event.proposedDate}
           </span>
+          {hasCapacity && spotsLeft > 0 && spotsLeft <= 10 && (
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
+              {spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left
+            </span>
+          )}
         </div>
         <Link to={`/event/${event.id}`}>
           <p className="text-sm font-medium font-serif" style={{ color: "var(--text)" }}>{event.title}</p>

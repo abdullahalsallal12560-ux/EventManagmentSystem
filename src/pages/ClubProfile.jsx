@@ -8,12 +8,14 @@ import { getClubById, updateClub } from "../data/clubsStore";
 import { getMembershipsByClub, MEMBERSHIP_STATUS } from "../data/clubMembershipsStore";
 import { getEventsByClub, EVENT_STATUS } from "../data/eventsStore";
 import { getUsersByIds } from "../data/usersStore";
-import { registerForEvent, getRegistrationsByUser } from "../data/registrationsStore";
+import { registerForEvent, getRegistrationsByUser, getAllRegistrations } from "../data/registrationsStore";
 import { placeholderImageUrl } from "../data/placeholderImages";
 import EventCard from "../components/EventCard";
 import Avatar from "../components/Avatar";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import TopBar from "../components/TopBar";
+import ClubApplicationModal from "../components/ClubApplicationModal";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 
@@ -25,12 +27,15 @@ export default function ClubProfile() {
   const toast = useToast();
 
   const [club, setClub] = useState(null);
-  const [members, setMembers] = useState([]);
+  const [memberships, setMemberships] = useState([]);
   const [memberUsers, setMemberUsers] = useState([]);
   const [events, setEvents] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
+  const [registrationCounts, setRegistrationCounts] = useState({});
   const [busyEventId, setBusyEventId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [applying, setApplying] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   const [editing, setEditing] = useState(false);
@@ -40,30 +45,43 @@ export default function ClubProfile() {
 
   async function loadData() {
     setLoading(true);
-    const foundClub = await getClubById(clubId);
-    if (!foundClub) {
-      setClub(null);
+    setError(false);
+    try {
+      const foundClub = await getClubById(clubId);
+      if (!foundClub) {
+        setClub(null);
+        return;
+      }
+      const [clubMemberships, clubEvents, allRegistrations] = await Promise.all([
+        getMembershipsByClub(clubId),
+        getEventsByClub(clubId),
+        getAllRegistrations(),
+      ]);
+      const approvedMemberships = clubMemberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
+      const users = await getUsersByIds(approvedMemberships.map((m) => m.userId));
+      const counts = {};
+      allRegistrations.forEach((r) => {
+        if (r.status === "cancelled") return;
+        counts[r.eventId] = (counts[r.eventId] || 0) + 1;
+      });
+
+      if (user?.role === ROLES.STUDENT) {
+        setMyRegistrations(await getRegistrationsByUser(user.id));
+      }
+
+      setClub(foundClub);
+      setName(foundClub.name);
+      setDescription(foundClub.description || "");
+      setMemberships(clubMemberships);
+      setMemberUsers(users);
+      setEvents(clubEvents);
+      setRegistrationCounts(counts);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
       setLoading(false);
-      return;
     }
-    const [memberships, clubEvents] = await Promise.all([
-      getMembershipsByClub(clubId),
-      getEventsByClub(clubId),
-    ]);
-    const approvedMemberships = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
-    const users = await getUsersByIds(approvedMemberships.map((m) => m.userId));
-
-    if (user?.role === ROLES.STUDENT) {
-      setMyRegistrations(await getRegistrationsByUser(user.id));
-    }
-
-    setClub(foundClub);
-    setName(foundClub.name);
-    setDescription(foundClub.description || "");
-    setMembers(approvedMemberships);
-    setMemberUsers(users);
-    setEvents(clubEvents);
-    setLoading(false);
   }
 
   async function handleRegister(event) {
@@ -108,11 +126,25 @@ export default function ClubProfile() {
     .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate))
     .slice(0, 3);
 
+  const myMembership = user ? memberships.find((m) => m.userId === user.id) : null;
+  const myMembershipStatus =
+    !myMembership || myMembership.status === MEMBERSHIP_STATUS.REJECTED ? "none" : myMembership.status;
+
+  const JOIN_CTA = {
+    none: { label: "Join", style: { background: "var(--accent)", color: "#fff" } },
+    pending: { label: "Pending", style: { background: "var(--bg-subtle)", color: "var(--text-faint)" } },
+    approved: { label: "Member ✓", style: { background: "var(--success-bg)", color: "var(--success)" } },
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)" }}>
       <TopBar />
       {showSkeleton ? (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10"><RowSkeleton /></div>
+      ) : error ? (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+          <ErrorState onRetry={loadData} />
+        </div>
       ) : !club ? (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
           <EmptyState title="Club not found" description="It may have been removed." />
@@ -165,6 +197,16 @@ export default function ClubProfile() {
                     <Pencil size={14} /> Edit
                   </button>
                 )}
+                {user?.role === ROLES.STUDENT && (
+                  <button
+                    onClick={() => setApplying(true)}
+                    disabled={myMembershipStatus !== "none"}
+                    className="text-sm rounded-lg px-4 py-2 font-medium shrink-0 disabled:cursor-default transition-colors"
+                    style={JOIN_CTA[myMembershipStatus].style}
+                  >
+                    {JOIN_CTA[myMembershipStatus].label}
+                  </button>
+                )}
               </div>
             )}
 
@@ -174,7 +216,7 @@ export default function ClubProfile() {
                   <p className="text-sm mt-2 max-w-2xl" style={{ color: "var(--text-muted)" }}>{club.description}</p>
                 )}
                 <p className="text-sm mt-2" style={{ color: "var(--text-faint)" }}>
-                  {members.length} member{members.length === 1 ? "" : "s"}
+                  {memberUsers.length} member{memberUsers.length === 1 ? "" : "s"}
                 </p>
               </>
             )}
@@ -194,6 +236,7 @@ export default function ClubProfile() {
                       clubName={club.name}
                       status={eventStatusFor(event)}
                       onRegister={handleRegister}
+                      registrationCount={registrationCounts[event.id] || 0}
                     />
                   ))}
                 </div>
@@ -225,6 +268,14 @@ export default function ClubProfile() {
           </div>
         </>
       )}
+
+      <ClubApplicationModal
+        open={applying}
+        club={club}
+        userId={user?.id}
+        onClose={() => setApplying(false)}
+        onSuccess={loadData}
+      />
     </div>
   );
 }

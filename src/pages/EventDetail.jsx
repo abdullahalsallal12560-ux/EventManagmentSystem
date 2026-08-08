@@ -11,6 +11,7 @@ import { placeholderImageUrl } from "../data/placeholderImages";
 import TopBar from "../components/TopBar";
 import Avatar from "../components/Avatar";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 
@@ -31,30 +32,37 @@ export default function EventDetail() {
   const [attendees, setAttendees] = useState([]);
   const [myRegistration, setMyRegistration] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   async function loadData() {
     setLoading(true);
-    const foundEvent = await getEventById(eventId);
-    if (!foundEvent) {
-      setEvent(null);
-      setLoading(false);
-      return;
-    }
-    const [foundClub, eventRegistrations] = await Promise.all([
-      getClubById(foundEvent.clubId),
-      getRegistrationsByEvent(eventId),
-    ]);
-    const activeRegistrations = eventRegistrations.filter((r) => r.status !== "cancelled");
-    const attendeeUsers = await getUsersByIds(activeRegistrations.map((r) => r.userId));
+    setError(false);
+    try {
+      const foundEvent = await getEventById(eventId);
+      if (!foundEvent) {
+        setEvent(null);
+        return;
+      }
+      const [foundClub, eventRegistrations] = await Promise.all([
+        getClubById(foundEvent.clubId),
+        getRegistrationsByEvent(eventId),
+      ]);
+      const activeRegistrations = eventRegistrations.filter((r) => r.status !== "cancelled");
+      const attendeeUsers = await getUsersByIds(activeRegistrations.map((r) => r.userId));
 
-    setEvent(foundEvent);
-    setClub(foundClub);
-    setRegistrations(activeRegistrations);
-    setAttendees(attendeeUsers);
-    setMyRegistration(user.role === ROLES.STUDENT ? activeRegistrations.find((r) => r.userId === user.id) || null : null);
-    setLoading(false);
+      setEvent(foundEvent);
+      setClub(foundClub);
+      setRegistrations(activeRegistrations);
+      setAttendees(attendeeUsers);
+      setMyRegistration(user.role === ROLES.STUDENT ? activeRegistrations.find((r) => r.userId === user.id) || null : null);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -62,6 +70,10 @@ export default function EventDetail() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
+
+  const hasCapacity = event && typeof event.maxAttendees === "number";
+  const spotsLeft = hasCapacity ? event.maxAttendees - registrations.length : null;
+  const isFull = hasCapacity && spotsLeft <= 0;
 
   async function handleRegister() {
     setBusy(true);
@@ -80,6 +92,10 @@ export default function EventDetail() {
       <TopBar />
       {showSkeleton ? (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10"><RowSkeleton /></div>
+      ) : error ? (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+          <ErrorState onRetry={loadData} />
+        </div>
       ) : !event ? (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
           <EmptyState title="Event not found" description="It may have been removed." />
@@ -118,7 +134,19 @@ export default function EventDetail() {
                 <span>🕒 {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}</span>
               )}
               {event.location && <span>📍 {event.location}</span>}
+              {typeof event.maxAttendees === "number" && (
+                <span>👥 {registrations.length}/{event.maxAttendees} registered</span>
+              )}
             </div>
+
+            {spotsLeft !== null && spotsLeft > 0 && spotsLeft <= 10 && (
+              <span
+                className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-3"
+                style={{ background: "var(--warning-bg)", color: "var(--warning)" }}
+              >
+                Only {spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left
+              </span>
+            )}
 
             {event.description && (
               <p className="text-sm mt-6 leading-relaxed max-w-2xl" style={{ color: "var(--text)" }}>{event.description}</p>
@@ -133,6 +161,10 @@ export default function EventDetail() {
                 ) : myRegistration ? (
                   <span className="inline-block text-sm font-medium px-4 py-2 rounded-lg" style={{ background: "var(--success-bg)", color: "var(--success)" }}>
                     Registered ✓
+                  </span>
+                ) : isFull ? (
+                  <span className="inline-block text-sm font-medium px-4 py-2 rounded-lg" style={{ background: "var(--bg-subtle)", color: "var(--text-faint)" }}>
+                    Event Full
                   </span>
                 ) : (
                   <button

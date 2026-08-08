@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { Maximize2 } from "lucide-react";
+import { CheckCircle, Maximize2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { getRegistrationsByUser } from "../data/registrationsStore";
 import { getAllEvents } from "../data/eventsStore";
@@ -8,6 +8,7 @@ import { getAllClubs } from "../data/clubsStore";
 import { getAllCheckins } from "../data/checkinsStore";
 import PageShell from "../components/PageShell";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import QRCodeModal from "../components/QRCodeModal";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
@@ -22,22 +23,30 @@ export default function MyRegistrations() {
   const [clubs, setClubs] = useState([]);
   const [checkins, setCheckins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [fullScreenTicket, setFullScreenTicket] = useState(null); // { reg, event } | null
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   async function loadData() {
     setLoading(true);
-    const [registrationList, eventList, clubList, checkinList] = await Promise.all([
-      getRegistrationsByUser(user.id),
-      getAllEvents(),
-      getAllClubs(),
-      getAllCheckins(),
-    ]);
-    setRegistrations(registrationList.filter((r) => r.status !== "cancelled"));
-    setEvents(eventList);
-    setClubs(clubList);
-    setCheckins(checkinList);
-    setLoading(false);
+    setError(false);
+    try {
+      const [registrationList, eventList, clubList, checkinList] = await Promise.all([
+        getRegistrationsByUser(user.id),
+        getAllEvents(),
+        getAllClubs(),
+        getAllCheckins(),
+      ]);
+      setRegistrations(registrationList.filter((r) => r.status !== "cancelled"));
+      setEvents(eventList);
+      setClubs(clubList);
+      setCheckins(checkinList);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -68,6 +77,8 @@ export default function MyRegistrations() {
         <div className="space-y-3">
           <RowSkeleton /><RowSkeleton /><RowSkeleton />
         </div>
+      ) : error ? (
+        <ErrorState onRetry={loadData} />
       ) : registrations.length === 0 ? (
         <EmptyState
           title="No tickets yet"
@@ -84,41 +95,52 @@ export default function MyRegistrations() {
               <EmptyState title="No upcoming tickets" />
             ) : (
               <div className="space-y-4">
-                {upcoming.map(({ reg, event }) => (
-                  <div
-                    key={reg.id}
-                    className="rounded-xl border p-5 flex flex-col sm:flex-row sm:items-center gap-5"
-                    style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <Link to={`/event/${event.id}`}>
-                        <p className="text-sm font-medium font-serif" style={{ color: "var(--text)" }}>{event.title}</p>
-                      </Link>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                        {clubName(event.clubId)} · {event.proposedDate}
-                        {event.location ? ` · ${event.location}` : ""}
-                      </p>
-                      <span
-                        className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-2"
-                        style={{ background: "var(--accent-bg)", color: "var(--accent-dark)" }}
-                      >
-                        {timeUntil(event.proposedDate)}
-                      </span>
-                    </div>
-                    <div className="text-center shrink-0">
-                      <div className="p-2 rounded-lg border inline-block" style={{ borderColor: "var(--border)", background: "#fff" }}>
-                        <QRCodeSVG value={reg.id} size={120} />
+                {upcoming.map(({ reg, event }) => {
+                  const checkedIn = checkins.some((c) => c.registrationId === reg.id);
+                  return (
+                    <div
+                      key={reg.id}
+                      className="rounded-xl border p-5 flex flex-col sm:flex-row sm:items-center gap-5"
+                      style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <Link to={`/event/${event.id}`}>
+                          <p className="text-sm font-medium font-serif" style={{ color: "var(--text)" }}>{event.title}</p>
+                        </Link>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {clubName(event.clubId)} · {event.proposedDate}
+                          {event.location ? ` · ${event.location}` : ""}
+                        </p>
+                        <span
+                          className="inline-block text-xs font-medium px-2.5 py-1 rounded-full mt-2"
+                          style={{ background: "var(--accent-bg)", color: "var(--accent-dark)" }}
+                        >
+                          {timeUntil(event.proposedDate)}
+                        </span>
                       </div>
-                      <button
-                        onClick={() => setFullScreenTicket({ reg, event })}
-                        className="flex items-center gap-1 text-xs font-medium mt-2 mx-auto"
-                        style={{ color: "var(--accent)" }}
-                      >
-                        <Maximize2 size={12} /> Full Screen
-                      </button>
+                      {checkedIn ? (
+                        <div className="text-center shrink-0 px-4">
+                          <CheckCircle size={48} style={{ color: "var(--success)" }} className="mx-auto" />
+                          <p className="text-sm font-medium mt-2" style={{ color: "var(--success)" }}>You're checked in!</p>
+                          <p className="text-xs mt-0.5 max-w-[10rem]" style={{ color: "var(--text-muted)" }}>{event.title}</p>
+                        </div>
+                      ) : (
+                        <div className="text-center shrink-0">
+                          <div className="p-2 rounded-lg border inline-block" style={{ borderColor: "var(--border)", background: "#fff" }}>
+                            <QRCodeSVG value={reg.id} size={120} />
+                          </div>
+                          <button
+                            onClick={() => setFullScreenTicket({ reg, event })}
+                            className="flex items-center gap-1 text-xs font-medium mt-2 mx-auto"
+                            style={{ color: "var(--accent)" }}
+                          >
+                            <Maximize2 size={12} /> Full Screen
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

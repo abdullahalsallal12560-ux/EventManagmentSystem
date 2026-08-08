@@ -8,6 +8,7 @@ import { getAllCheckins } from "../data/checkinsStore";
 import PageShell from "../components/PageShell";
 import StatCard from "../components/StatCard";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import { RowSkeleton, StatCardSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 
@@ -17,11 +18,13 @@ export default function EventHistory() {
   const [rows, setRows] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
+  async function loadData() {
+    setLoading(true);
+    setError(false);
+    try {
       const [registrations, events, clubList, checkins] = await Promise.all([
         getRegistrationsByUser(user.id),
         getAllEvents(),
@@ -41,9 +44,18 @@ export default function EventHistory() {
 
       setRows(pastRows);
       setClubs(clubList);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
       setLoading(false);
     }
-    load();
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id]);
 
   function clubName(clubId) {
@@ -63,6 +75,8 @@ export default function EventHistory() {
           </div>
           <RowSkeleton />
         </div>
+      ) : error ? (
+        <ErrorState onRetry={loadData} />
       ) : rows.length === 0 ? (
         <EmptyState
           title="No past events yet"

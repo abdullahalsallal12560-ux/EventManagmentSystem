@@ -9,6 +9,7 @@ import { getRegistrationsByUser } from "../data/registrationsStore";
 import { getAllCheckins } from "../data/checkinsStore";
 import PageShell from "../components/PageShell";
 import Avatar from "../components/Avatar";
+import ErrorState from "../components/ErrorState";
 import { RowSkeleton } from "../components/Skeleton";
 
 const inputStyle = { borderColor: "var(--border)", background: "var(--bg)", color: "var(--text)", "--tw-ring-color": "var(--accent)" };
@@ -18,6 +19,7 @@ export default function Profile() {
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [stats, setStats] = useState(null);
 
   const [bio, setBio] = useState("");
@@ -36,24 +38,31 @@ export default function Profile() {
   async function loadData() {
     if (!user) return;
     setLoading(true);
-    const existing = await getProfile(user.id);
-    setBio(existing?.bio || "");
-    setAvatarUrl(existing?.avatarUrl || "");
-    setInterests(existing?.interests || []);
+    setError(false);
+    try {
+      const existing = await getProfile(user.id);
+      setBio(existing?.bio || "");
+      setAvatarUrl(existing?.avatarUrl || "");
+      setInterests(existing?.interests || []);
 
-    if (user.role === ROLES.STUDENT) {
-      const [memberships, registrations, checkins] = await Promise.all([
-        getMembershipsByUser(user.id),
-        getRegistrationsByUser(user.id),
-        getAllCheckins(),
-      ]);
-      const registrationIds = new Set(registrations.map((r) => r.id));
-      setStats({
-        clubsJoined: memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED).length,
-        eventsAttended: checkins.filter((c) => registrationIds.has(c.registrationId)).length,
-      });
+      if (user.role === ROLES.STUDENT) {
+        const [memberships, registrations, checkins] = await Promise.all([
+          getMembershipsByUser(user.id),
+          getRegistrationsByUser(user.id),
+          getAllCheckins(),
+        ]);
+        const registrationIds = new Set(registrations.map((r) => r.id));
+        setStats({
+          clubsJoined: memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED).length,
+          eventsAttended: checkins.filter((c) => registrationIds.has(c.registrationId)).length,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -127,6 +136,8 @@ export default function Profile() {
     <PageShell title="Your account" maxWidth="max-w-4xl">
       {loading ? (
         <RowSkeleton />
+      ) : error ? (
+        <ErrorState onRetry={loadData} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1">

@@ -21,6 +21,11 @@ const SEED_LOCK_COLLECTION = "_seed_locks";
 const SEED_LOCK_DOC_ID = "expandedDataSeed";
 const MIN_EVENTS_BEFORE_SKIP = 15;
 
+// Inclusive random int, used only for one-time seed/backfill writes.
+function randomBetween(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 const DEFAULT_TIME_SLOTS = [
   { startTime: "10:00", endTime: "12:00", location: "Main Hall, Building A" },
   { startTime: "14:00", endTime: "16:00", location: "Room 204" },
@@ -74,17 +79,19 @@ export async function seedExpandedDataIfNeeded() {
     return;
   }
 
-  // 1. Backfill startTime/endTime/location onto events that predate these fields.
+  // 1. Backfill startTime/endTime/location/maxAttendees onto events that
+  // predate these fields.
   const backfillBatch = writeBatch(db);
   let backfillCount = 0;
   existingEvents.forEach((ev, i) => {
-    if (ev.startTime && ev.endTime && ev.location) return;
+    if (ev.startTime && ev.endTime && ev.location && typeof ev.maxAttendees === "number") return;
     const slot = DEFAULT_TIME_SLOTS[i % DEFAULT_TIME_SLOTS.length];
     backfillBatch.update(doc(db, COLLECTIONS.EVENTS, ev.id), {
       startTime: ev.startTime || slot.startTime,
       endTime: ev.endTime || slot.endTime,
       location: ev.location || slot.location,
       attendeeCount: typeof ev.attendeeCount === "number" ? ev.attendeeCount : 0,
+      maxAttendees: typeof ev.maxAttendees === "number" ? ev.maxAttendees : randomBetween(30, 150),
     });
     backfillCount++;
   });
@@ -109,6 +116,7 @@ export async function seedExpandedDataIfNeeded() {
       startTime: plan.startTime,
       endTime: plan.endTime,
       location: plan.location,
+      maxAttendees: randomBetween(30, 150),
     });
 
     const clubMemberships = await getMembershipsByClub(club.id);

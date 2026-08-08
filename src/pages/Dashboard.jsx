@@ -1,15 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { useOnboarding } from "../context/OnboardingContext";
 import { ROLES, ROLE_LABELS, ROLE_COLORS } from "../data/mockUsers";
+import { ONBOARDING_STEPS } from "../data/onboardingSteps";
 import PageShell from "../components/PageShell";
 import StatCard from "../components/StatCard";
 import EventCard from "../components/EventCard";
 import ClubCard from "../components/ClubCard";
 import Avatar from "../components/Avatar";
 import EmptyState from "../components/EmptyState";
-import QRScanner from "../components/QRScanner";
+import ErrorState from "../components/ErrorState";
+import CheckInScanner from "../components/CheckInScanner";
+import ClubApplicationModal from "../components/ClubApplicationModal";
+import OnboardingTour from "../components/OnboardingTour";
 import { StatCardSkeleton, CardSkeleton, RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 import { timeAgo } from "../utils/timeAgo";
@@ -19,12 +24,11 @@ import {
   getMembershipsByUser,
   getMembershipsByClub,
   updateMembershipStatus,
-  requestToJoinClub,
   MEMBERSHIP_STATUS,
 } from "../data/clubMembershipsStore";
 import { getAllEvents, getEventsByClub, getEventsByStatus, EVENT_STATUS } from "../data/eventsStore";
-import { getRegistrationsByUser, registerForEvent } from "../data/registrationsStore";
-import { getAllCheckins, checkInByRegistrationId } from "../data/checkinsStore";
+import { getRegistrationsByUser, registerForEvent, getAllRegistrations } from "../data/registrationsStore";
+import { getAllCheckins } from "../data/checkinsStore";
 import { getAllUsers, getUsersByIds } from "../data/usersStore";
 import { getAllVenues } from "../data/venuesStore";
 import { getAllVenueReservations } from "../data/venueReservationsStore";
@@ -65,55 +69,70 @@ function SectionTitle({ children }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const toast = useToast();
+  const { pendingStart, clearPendingStart } = useOnboarding();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [tourOpen, setTourOpen] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   async function loadData() {
     if (!user) return;
     setLoading(true);
+    setLoadFailed(false);
 
-    if (user.role === ROLES.STUDENT) {
-      const [clubs, myMemberships, allEvents, myRegistrations, allCheckins] = await Promise.all([
-        getAllClubs(),
-        getMembershipsByUser(user.id),
-        getAllEvents(),
-        getRegistrationsByUser(user.id),
-        getAllCheckins(),
-      ]);
-      setData({ clubs, myMemberships, allEvents, myRegistrations, allCheckins });
-    } else if (user.role === ROLES.CLUB_ADMIN) {
-      const clubs = await getClubsByAdmin(user.id);
-      const club = clubs[0] || null;
-      if (club) {
-        const [memberships, events] = await Promise.all([
-          getMembershipsByClub(club.id),
-          getEventsByClub(club.id),
+    try {
+      if (user.role === ROLES.STUDENT) {
+        const [clubs, myMemberships, allEvents, myRegistrations, allCheckins, allRegistrations] = await Promise.all([
+          getAllClubs(),
+          getMembershipsByUser(user.id),
+          getAllEvents(),
+          getRegistrationsByUser(user.id),
+          getAllCheckins(),
+          getAllRegistrations(),
         ]);
-        const approvedIds = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED).map((m) => m.userId);
-        const pendingIds = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.PENDING).map((m) => m.userId);
-        const memberUsers = await getUsersByIds([...approvedIds, ...pendingIds]);
-        setData({ club, memberships, events, memberUsers });
+        const registrationCounts = {};
+        allRegistrations.forEach((r) => {
+          if (r.status === "cancelled") return;
+          registrationCounts[r.eventId] = (registrationCounts[r.eventId] || 0) + 1;
+        });
+        setData({ clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts });
+      } else if (user.role === ROLES.CLUB_ADMIN) {
+        const clubs = await getClubsByAdmin(user.id);
+        const club = clubs[0] || null;
+        if (club) {
+          const [memberships, events] = await Promise.all([
+            getMembershipsByClub(club.id),
+            getEventsByClub(club.id),
+          ]);
+          const approvedIds = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED).map((m) => m.userId);
+          const pendingIds = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.PENDING).map((m) => m.userId);
+          const memberUsers = await getUsersByIds([...approvedIds, ...pendingIds]);
+          setData({ club, memberships, events, memberUsers });
+        } else {
+          setData({ club: null });
+        }
+      } else if (user.role === ROLES.UNIVERSITY_ADMIN) {
+        const [clubs, users, events] = await Promise.all([getAllClubs(), getAllUsers(), getAllEvents()]);
+        setData({ clubs, users, events });
+      } else if (user.role === ROLES.FACILITY_MANAGER) {
+        const [venues, reservations, events] = await Promise.all([
+          getAllVenues(),
+          getAllVenueReservations(),
+          getAllEvents(),
+        ]);
+        setData({ venues, reservations, events });
       } else {
-        setData({ club: null });
+        setData({});
       }
-    } else if (user.role === ROLES.UNIVERSITY_ADMIN) {
-      const [clubs, users, events] = await Promise.all([getAllClubs(), getAllUsers(), getAllEvents()]);
-      setData({ clubs, users, events });
-    } else if (user.role === ROLES.FACILITY_MANAGER) {
-      const [venues, reservations, events] = await Promise.all([
-        getAllVenues(),
-        getAllVenueReservations(),
-        getAllEvents(),
-      ]);
-      setData({ venues, reservations, events });
-    } else {
-      setData({});
+    } catch (err) {
+      console.error(err);
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -121,6 +140,32 @@ export default function Dashboard() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // First-ever visit: auto-start the tour once this page's own data has
+  // loaded (so every step's target actually exists in the DOM).
+  useEffect(() => {
+    if (!user || showSkeleton) return;
+    if (!window.localStorage.getItem(`onboarding_done_${user.id}`)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTourOpen(true);
+    }
+  }, [user, showSkeleton]);
+
+  // The "?" button in TopBar sets this from any page, possibly navigating
+  // here first — wait for data to load, then open regardless of the
+  // "already done" flag (the whole point of a manual replay).
+  useEffect(() => {
+    if (pendingStart && !showSkeleton) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTourOpen(true);
+      clearPendingStart();
+    }
+  }, [pendingStart, showSkeleton, clearPendingStart]);
+
+  function handleTourClose() {
+    setTourOpen(false);
+    if (user) window.localStorage.setItem(`onboarding_done_${user.id}`, "true");
+  }
 
   if (!user) return null;
 
@@ -141,19 +186,32 @@ export default function Dashboard() {
         </h1>
       </div>
 
-      {user.role === ROLES.STUDENT && (
-        <StudentDashboard data={data} loading={showSkeleton} user={user} onRefresh={loadData} />
+      {loadFailed ? (
+        <ErrorState onRetry={loadData} />
+      ) : (
+        <>
+          {user.role === ROLES.STUDENT && (
+            <StudentDashboard data={data} loading={showSkeleton} user={user} onRefresh={loadData} />
+          )}
+          {user.role === ROLES.CLUB_ADMIN && (
+            <ClubAdminDashboard data={data} loading={showSkeleton} busyId={busyId} onDecision={handleMembershipDecision} user={user} />
+          )}
+          {user.role === ROLES.UNIVERSITY_ADMIN && (
+            <UniversityAdminDashboard data={data} loading={showSkeleton} />
+          )}
+          {user.role === ROLES.EVENT_STAFF && <EventStaffDashboard user={user} />}
+          {user.role === ROLES.FACILITY_MANAGER && (
+            <FacilityManagerDashboard data={data} loading={showSkeleton} />
+          )}
+        </>
       )}
-      {user.role === ROLES.CLUB_ADMIN && (
-        <ClubAdminDashboard data={data} loading={showSkeleton} busyId={busyId} onDecision={handleMembershipDecision} />
-      )}
-      {user.role === ROLES.UNIVERSITY_ADMIN && (
-        <UniversityAdminDashboard data={data} loading={showSkeleton} />
-      )}
-      {user.role === ROLES.EVENT_STAFF && <EventStaffDashboard user={user} />}
-      {user.role === ROLES.FACILITY_MANAGER && (
-        <FacilityManagerDashboard data={data} loading={showSkeleton} />
-      )}
+
+      <OnboardingTour
+        open={tourOpen}
+        steps={ONBOARDING_STEPS[user.role] || []}
+        onFinish={handleTourClose}
+        onSkip={handleTourClose}
+      />
     </PageShell>
   );
 }
@@ -163,6 +221,7 @@ export default function Dashboard() {
 function StudentDashboard({ data, loading, user, onRefresh }) {
   const toast = useToast();
   const [busyId, setBusyId] = useState(null);
+  const [applyClub, setApplyClub] = useState(null);
 
   async function handleRegister(event) {
     setBusyId(event.id);
@@ -173,18 +232,6 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
       return;
     }
     toast.success(`Registered for ${event.title}.`);
-    onRefresh();
-  }
-
-  async function handleJoin(club) {
-    setBusyId(club.id);
-    const result = await requestToJoinClub({ userId: user.id, clubId: club.id });
-    setBusyId(null);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success(`Requested to join ${club.name}.`);
     onRefresh();
   }
 
@@ -201,7 +248,7 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
     );
   }
 
-  const { clubs, myMemberships, allEvents, myRegistrations, allCheckins } = data;
+  const { clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts } = data;
   const today = new Date().toISOString().slice(0, 10);
 
   const approvedMemberships = myMemberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
@@ -273,6 +320,7 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
                 clubName={clubName(event.clubId)}
                 status={busyId === event.id ? "registering" : "register"}
                 onRegister={handleRegister}
+                registrationCount={registrationCounts[event.id] || 0}
               />
             ))}
           </div>
@@ -303,23 +351,26 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {suggestedClubs.map((club) => (
-              <ClubCard
-                key={club.id}
-                club={club}
-                membershipStatus={busyId === club.id ? "requesting" : "none"}
-                onRequest={handleJoin}
-              />
+              <ClubCard key={club.id} club={club} membershipStatus="none" onRequest={setApplyClub} />
             ))}
           </div>
         )}
       </section>
+
+      <ClubApplicationModal
+        open={!!applyClub}
+        club={applyClub}
+        userId={user.id}
+        onClose={() => setApplyClub(null)}
+        onSuccess={onRefresh}
+      />
     </div>
   );
 }
 
 // -------------------------------------------------------------- Club Admin
 
-function ClubAdminDashboard({ data, loading, busyId, onDecision }) {
+function ClubAdminDashboard({ data, loading, busyId, onDecision, user }) {
   if (loading || !data) {
     return (
       <div className="space-y-8">
@@ -344,6 +395,11 @@ function ClubAdminDashboard({ data, loading, busyId, onDecision }) {
   const approved = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
   const pending = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.PENDING);
   const recentEvents = [...events].sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate)).slice(0, 3);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const scannableEvents = events
+    .filter((e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today)
+    .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate));
 
   function userFor(userId) {
     return memberUsers.find((u) => u.id === userId);
@@ -429,6 +485,15 @@ function ClubAdminDashboard({ data, loading, busyId, onDecision }) {
             )}
           </div>
         )}
+      </section>
+
+      <section className="space-y-4">
+        <SectionTitle>Check in attendees</SectionTitle>
+        <CheckInScanner
+          events={scannableEvents}
+          scannedBy={user.id}
+          emptyEventsMessage="No approved upcoming events to check in right now."
+        />
       </section>
     </div>
   );
@@ -522,25 +587,8 @@ function UniversityAdminDashboard({ data, loading }) {
 
 // ------------------------------------------------------------- Event Staff
 
-const SCAN_STATUS_STYLE = {
-  valid: { bg: "var(--success-bg)", text: "var(--success)", label: "Checked in" },
-  duplicate: { bg: "var(--warning-bg)", text: "var(--warning)", label: "Already checked in" },
-  "wrong-event": { bg: "var(--accent-bg)", text: "var(--accent-dark)", label: "Wrong event" },
-  invalid: { bg: "var(--bg-subtle)", text: "var(--text-faint)", label: "Invalid code" },
-};
-
-// Same code stays in the camera's view for many frames in a row — html5-qrcode
-// fires its success callback on every one of them. Ignore repeats of the same
-// decoded value within this window so one physical scan doesn't produce a
-// flood of duplicate toasts/log entries/checkins.
-const RESCAN_COOLDOWN_MS = 5000;
-
 function EventStaffDashboard({ user }) {
-  const toast = useToast();
   const [events, setEvents] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState("");
-  const [scanLog, setScanLog] = useState([]);
-  const lastScanRef = useRef({ value: null, at: 0 });
 
   useEffect(() => {
     async function loadEvents() {
@@ -553,48 +601,6 @@ function EventStaffDashboard({ user }) {
     }
     loadEvents();
   }, []);
-
-  function pushLog(name, status) {
-    const entry = { name, status, time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) };
-    setScanLog((prev) => [entry, ...prev].slice(0, 10));
-  }
-
-  // Returns the outcome status ("valid" | "duplicate" | "wrong-event" |
-  // "invalid"), or undefined when the scan was ignored outright (dedupe
-  // window below) — QRScanner uses that return value to drive its
-  // vibration/flash feedback, skipping feedback entirely on undefined so a
-  // silently-ignored repeat scan doesn't still flash red at the user.
-  async function handleDecode(decodedText) {
-    const now = Date.now();
-    if (lastScanRef.current.value === decodedText && now - lastScanRef.current.at < RESCAN_COOLDOWN_MS) {
-      return undefined;
-    }
-    lastScanRef.current = { value: decodedText, at: now };
-
-    const result = await checkInByRegistrationId({
-      registrationId: decodedText,
-      eventId: selectedEventId,
-      scannedBy: user.id,
-    });
-
-    let name = "Unknown code";
-    if (result.userId) {
-      const [foundUser] = await getUsersByIds([result.userId]);
-      name = foundUser?.name || "Unknown student";
-    }
-
-    if (result.success) {
-      toast.success(`Checked in: ${name}`);
-      pushLog(name, "valid");
-    } else {
-      toast.error(result.error);
-      pushLog(name, result.status);
-    }
-
-    return result.status;
-  }
-
-  const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
 
   return (
     <div className="space-y-8">
@@ -611,47 +617,11 @@ function EventStaffDashboard({ user }) {
         </ol>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Event</label>
-        <select
-          value={selectedEventId}
-          onChange={(e) => setSelectedEventId(e.target.value)}
-          className="w-full sm:w-96 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
-          style={{ borderColor: "var(--border)", background: "var(--bg-card)", color: "var(--text)", "--tw-ring-color": "var(--accent)" }}
-        >
-          <option value="">-- Select an event --</option>
-          {events.map((ev) => (
-            <option key={ev.id} value={ev.id}>{ev.title} · {ev.proposedDate}</option>
-          ))}
-        </select>
-        {events.length === 0 && (
-          <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>No approved upcoming events to staff right now.</p>
-        )}
-      </div>
-
-      <QRScanner enabled={!!selectedEvent} onDecode={handleDecode} />
-
-      <section>
-        <SectionTitle>Recent scans</SectionTitle>
-        {scanLog.length === 0 ? (
-          <EmptyState title="No scans yet this session" description="Checked-in attendees will appear here as you scan." />
-        ) : (
-          <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
-            {scanLog.map((entry, i) => {
-              const style = SCAN_STATUS_STYLE[entry.status] || SCAN_STATUS_STYLE.invalid;
-              return (
-                <div key={i} className="flex items-center gap-3 px-4 py-3">
-                  <p className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--text)" }}>{entry.name}</p>
-                  <span className="text-xs font-medium px-2.5 py-1 rounded-full shrink-0" style={{ background: style.bg, color: style.text }}>
-                    {style.label}
-                  </span>
-                  <span className="text-xs shrink-0 w-14 text-right" style={{ color: "var(--text-faint)" }}>{entry.time}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      <CheckInScanner
+        events={events}
+        scannedBy={user.id}
+        emptyEventsMessage="No approved upcoming events to staff right now."
+      />
     </div>
   );
 }
@@ -702,7 +672,7 @@ function FacilityManagerDashboard({ data, loading }) {
         <StatCard label="Reservations This Month" value={reservationsThisMonth.length} icon="📋" />
       </div>
 
-      <section>
+      <section data-tour="reservations-section">
         <SectionTitle>Venue reservations</SectionTitle>
         {upcoming.length === 0 ? (
           <EmptyState title="No upcoming reservations" description="Reservations will show up here once events book a venue." />
@@ -721,7 +691,7 @@ function FacilityManagerDashboard({ data, loading }) {
         )}
       </section>
 
-      <section>
+      <section data-tour="venues-section">
         <SectionTitle>Venues</SectionTitle>
         {venues.length === 0 ? (
           <EmptyState title="No venues yet" />

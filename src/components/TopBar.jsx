@@ -1,27 +1,29 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Menu, Moon, Sun, X } from "lucide-react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { HelpCircle, Menu, Moon, Search, Sun, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useOnboarding } from "../context/OnboardingContext";
 import { ROLES } from "../data/mockUsers";
 import Logo from "./Logo";
 import Avatar from "./Avatar";
+import SearchOverlay from "./SearchOverlay";
 
 const NAV_LINKS = {
   [ROLES.STUDENT]: [
-    { label: "Discover", to: "/student/events" },
-    { label: "My Clubs", to: "/student/clubs" },
-    { label: "My Tickets", to: "/student/registrations" },
+    { label: "Discover", to: "/student/events", tourId: "nav-discover" },
+    { label: "My Clubs", to: "/student/clubs", tourId: "nav-my-clubs" },
+    { label: "My Tickets", to: "/student/registrations", tourId: "nav-my-tickets" },
     { label: "My History", to: "/student/history" },
   ],
   [ROLES.CLUB_ADMIN]: [
-    { label: "My Events", to: "/club/propose-event" },
-    { label: "Members", to: "/club/members" },
+    { label: "My Events", to: "/club/propose-event", tourId: "nav-my-events" },
+    { label: "Members", to: "/club/members", tourId: "nav-members" },
   ],
   [ROLES.UNIVERSITY_ADMIN]: [
-    { label: "Clubs", to: "/admin/clubs" },
-    { label: "Users", to: "/admin/users" },
-    { label: "Approvals", to: "/admin/events" },
+    { label: "Clubs", to: "/admin/clubs", tourId: "nav-clubs" },
+    { label: "Users", to: "/admin/users", tourId: "nav-users" },
+    { label: "Approvals", to: "/admin/events", tourId: "nav-approvals" },
   ],
   [ROLES.EVENT_STAFF]: [],
   [ROLES.FACILITY_MANAGER]: [],
@@ -33,10 +35,13 @@ const navLinkClass = ({ isActive }) =>
 export default function TopBar() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { requestTour } = useOnboarding();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -56,6 +61,11 @@ export default function TopBar() {
     setDrawerOpen(false);
     logout();
     navigate("/login");
+  }
+
+  function handleHelpClick() {
+    requestTour();
+    if (location.pathname !== "/dashboard") navigate("/dashboard");
   }
 
   return (
@@ -81,6 +91,7 @@ export default function TopBar() {
             <NavLink
               key={link.to}
               to={link.to}
+              data-tour={link.tourId}
               className={navLinkClass}
               style={({ isActive }) => ({
                 color: isActive ? "var(--accent)" : "var(--text-muted)",
@@ -93,17 +104,37 @@ export default function TopBar() {
         </nav>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <button
+          onClick={() => setSearchOpen(true)}
+          className="p-2 rounded-lg transition-colors hover:opacity-70"
+          style={{ color: "var(--text-muted)" }}
+          aria-label="Search events and clubs"
+        >
+          <Search size={18} />
+        </button>
+
+        <button
+          onClick={handleHelpClick}
+          className="p-2 rounded-lg transition-colors hover:opacity-70"
+          style={{ color: "var(--text-muted)" }}
+          aria-label="Replay the onboarding tour"
+          title="Help"
+        >
+          <HelpCircle size={18} />
+        </button>
+
+        <button
+          data-tour="theme-toggle"
           onClick={toggleTheme}
-          className="p-2 rounded-lg"
+          className="p-2 rounded-lg transition-colors hover:opacity-70"
           style={{ color: "var(--text-muted)" }}
           aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
-        <div className="relative" ref={menuRef}>
+        <div className="relative ml-1" ref={menuRef}>
           <button onClick={() => setMenuOpen((o) => !o)} aria-label="Account menu" className="block">
             <Avatar name={user.name} imageUrl={user.avatarUrl} color={user.avatarColor} size="sm" />
           </button>
@@ -182,6 +213,8 @@ export default function TopBar() {
           </div>
         </div>
       )}
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

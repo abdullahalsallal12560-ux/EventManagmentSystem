@@ -8,6 +8,7 @@ import { getAllClubs } from "../data/clubsStore";
 import { placeholderImageUrl } from "../data/placeholderImages";
 import PageShell from "../components/PageShell";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 
@@ -87,6 +88,7 @@ export default function ApproveEvents() {
   const [events, setEvents] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [busyEventId, setBusyEventId] = useState(null);
@@ -95,11 +97,18 @@ export default function ApproveEvents() {
 
   async function loadData() {
     setLoading(true);
-    const [eventList, clubList] = await Promise.all([getAllEvents(), getAllClubs()]);
-    eventList.sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate));
-    setEvents(eventList);
-    setClubs(clubList);
-    setLoading(false);
+    setError(false);
+    try {
+      const [eventList, clubList] = await Promise.all([getAllEvents(), getAllClubs()]);
+      eventList.sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate));
+      setEvents(eventList);
+      setClubs(clubList);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -159,6 +168,8 @@ export default function ApproveEvents() {
 
       {showSkeleton ? (
         <div className="space-y-3"><RowSkeleton /><RowSkeleton /></div>
+      ) : error ? (
+        <ErrorState onRetry={loadData} />
       ) : filter !== "all" ? (
         visibleEvents.length === 0 ? (
           <EmptyState title="No events in this view" />

@@ -7,6 +7,7 @@ import { getAllClubs } from "../data/clubsStore";
 import PageShell from "../components/PageShell";
 import Avatar from "../components/Avatar";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
@@ -19,6 +20,7 @@ export default function ManageUsers() {
   const [users, setUsers] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -37,10 +39,17 @@ export default function ManageUsers() {
 
   async function loadData() {
     setLoading(true);
-    const [usersData, clubsData] = await Promise.all([getAllUsers(), getAllClubs()]);
-    setUsers(usersData);
-    setClubs(clubsData);
-    setLoading(false);
+    setLoadError(false);
+    try {
+      const [usersData, clubsData] = await Promise.all([getAllUsers(), getAllClubs()]);
+      setUsers(usersData);
+      setClubs(clubsData);
+    } catch (err) {
+      console.error(err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -225,6 +234,8 @@ export default function ManageUsers() {
 
       {showSkeleton ? (
         <div className="space-y-3"><RowSkeleton /><RowSkeleton /><RowSkeleton /></div>
+      ) : loadError ? (
+        <ErrorState onRetry={loadData} />
       ) : visibleUsers.length === 0 ? (
         <EmptyState title="No accounts match your search" />
       ) : (

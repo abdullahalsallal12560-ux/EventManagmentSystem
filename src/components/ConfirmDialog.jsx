@@ -36,7 +36,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="text-sm px-4 py-2 rounded-lg border font-medium disabled:opacity-60"
+            className="text-sm px-4 py-2 rounded-lg border font-medium disabled:opacity-60 transition-colors"
             style={{ borderColor: "var(--border)", color: "var(--text)" }}
           >
             {cancelLabel}
@@ -45,7 +45,7 @@ export default function ConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="text-sm px-4 py-2 rounded-lg font-medium text-white disabled:opacity-60"
+            className="text-sm px-4 py-2 rounded-lg font-medium text-white disabled:opacity-60 transition-colors"
             style={{ background: danger ? "var(--accent)" : "var(--success)" }}
           >
             {busy ? "Working..." : confirmLabel}

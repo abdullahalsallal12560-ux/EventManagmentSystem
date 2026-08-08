@@ -17,6 +17,7 @@ export const EVENT_STATUS = {
 // that are already approved/rejected; normal proposals still start pending.
 // startTime/endTime (HH:MM) and location are free-text details shown on the
 // event detail page; attendeeCount is maintained by checkin logic.
+// maxAttendees is the registration cap — registerForEvent enforces it.
 export async function createEvent({
   clubId,
   title,
@@ -28,6 +29,7 @@ export async function createEvent({
   startTime,
   endTime,
   location,
+  maxAttendees,
 }) {
   const id = generateId("evt");
   return createDoc(COLLECTIONS.EVENTS, id, {
@@ -42,6 +44,7 @@ export async function createEvent({
     endTime: endTime || "",
     location: location || "",
     attendeeCount: 0,
+    maxAttendees: typeof maxAttendees === "number" ? maxAttendees : Number(maxAttendees) || null,
   });
 }
 

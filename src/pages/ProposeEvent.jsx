@@ -6,6 +6,7 @@ import { createEvent, getEventsByClub, EVENT_STATUS } from "../data/eventsStore"
 import { getApprovalsByEvent, DECISION } from "../data/eventApprovalsStore";
 import PageShell from "../components/PageShell";
 import EmptyState from "../components/EmptyState";
+import ErrorState from "../components/ErrorState";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
 
@@ -25,6 +26,7 @@ export default function ProposeEvent() {
   const [events, setEvents] = useState([]);
   const [feedbackByEvent, setFeedbackByEvent] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
 
   const [title, setTitle] = useState("");
@@ -33,32 +35,40 @@ export default function ProposeEvent() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [location, setLocation] = useState("");
+  const [maxAttendees, setMaxAttendees] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function loadData() {
     setLoading(true);
-    const clubs = await getClubsByAdmin(user.id);
-    const myClub = clubs[0] || null;
-    setClub(myClub);
+    setLoadError(false);
+    try {
+      const clubs = await getClubsByAdmin(user.id);
+      const myClub = clubs[0] || null;
+      setClub(myClub);
 
-    if (myClub) {
-      const eventList = await getEventsByClub(myClub.id);
-      eventList.sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate));
-      setEvents(eventList);
+      if (myClub) {
+        const eventList = await getEventsByClub(myClub.id);
+        eventList.sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate));
+        setEvents(eventList);
 
-      const rejected = eventList.filter((e) => e.status === EVENT_STATUS.REJECTED);
-      const approvalsByEvent = {};
-      await Promise.all(
-        rejected.map(async (ev) => {
-          const approvals = await getApprovalsByEvent(ev.id);
-          const decision = approvals.find((a) => a.decision === DECISION.REJECTED && a.feedback);
-          if (decision) approvalsByEvent[ev.id] = decision.feedback;
-        })
-      );
-      setFeedbackByEvent(approvalsByEvent);
+        const rejected = eventList.filter((e) => e.status === EVENT_STATUS.REJECTED);
+        const approvalsByEvent = {};
+        await Promise.all(
+          rejected.map(async (ev) => {
+            const approvals = await getApprovalsByEvent(ev.id);
+            const decision = approvals.find((a) => a.decision === DECISION.REJECTED && a.feedback);
+            if (decision) approvalsByEvent[ev.id] = decision.feedback;
+          })
+        );
+        setFeedbackByEvent(approvalsByEvent);
+      }
+    } catch (err) {
+      console.error(err);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   useEffect(() => {
@@ -79,6 +89,11 @@ export default function ProposeEvent() {
       setError("Choose a proposed date.");
       return;
     }
+    const maxAttendeesNum = parseInt(maxAttendees, 10);
+    if (!maxAttendees || Number.isNaN(maxAttendeesNum) || maxAttendeesNum < 10) {
+      setError("Enter a maximum attendee capacity of at least 10.");
+      return;
+    }
 
     setSubmitting(true);
     await createEvent({
@@ -89,6 +104,7 @@ export default function ProposeEvent() {
       startTime,
       endTime,
       location: location.trim(),
+      maxAttendees: maxAttendeesNum,
       createdBy: user.id,
     });
     setTitle("");
@@ -97,6 +113,7 @@ export default function ProposeEvent() {
     setStartTime("");
     setEndTime("");
     setLocation("");
+    setMaxAttendees("");
     setSubmitting(false);
     toast.success("Event submitted for approval.");
     loadData();
@@ -106,6 +123,8 @@ export default function ProposeEvent() {
     <PageShell title={club ? club.name : "Propose Event"} subtitle="Submit a new event for university approval.">
       {showSkeleton ? (
         <RowSkeleton />
+      ) : loadError ? (
+        <ErrorState onRetry={loadData} />
       ) : !club ? (
         <EmptyState title="No club assigned yet" description="Ask the University Admin to assign you to manage a club." />
       ) : (
@@ -141,11 +160,19 @@ export default function ProposeEvent() {
                   className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent" style={inputStyle} />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Location</label>
-              <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Main Hall, Building A"
-                className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent" style={inputStyle} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Location</label>
+                <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Main Hall, Building A"
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent" style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Maximum attendees</label>
+                <input type="number" min="10" required value={maxAttendees} onChange={(e) => setMaxAttendees(e.target.value)}
+                  placeholder="e.g. 100"
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent" style={inputStyle} />
+              </div>
             </div>
 
             {error && (

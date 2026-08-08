@@ -9,11 +9,15 @@ export const MEMBERSHIP_STATUS = {
   REJECTED: "rejected",
 };
 
-// Fields: id (PK), userId (FK), clubId (FK), status, joinedAt
+// Fields: id (PK), userId (FK), clubId (FK), status, joinedAt, plus
+// applicationData — the membership application form (GPA, major, faculty,
+// credit hours, skills, why, availability) captured at request time and
+// shown to the Club Admin alongside the pending request. Not a separate
+// collection: it's just an object field on this same document.
 // A student requests to join; the Club Admin later approves/rejects via
 // updateMembershipStatus. Blocks a duplicate request while one is already
 // pending or approved (a rejected request can be resubmitted).
-export async function requestToJoinClub({ userId, clubId }) {
+export async function requestToJoinClub({ userId, clubId, applicationData }) {
   const existing = await getDocsWhere(COLLECTIONS.CLUB_MEMBERSHIPS, "clubId", "==", clubId);
   const duplicate = existing.find(
     (m) => m.userId === userId && m.status !== MEMBERSHIP_STATUS.REJECTED
@@ -28,6 +32,7 @@ export async function requestToJoinClub({ userId, clubId }) {
     clubId,
     status: MEMBERSHIP_STATUS.PENDING,
     joinedAt: new Date().toISOString(),
+    applicationData: applicationData || null,
   });
   return { success: true, membership };
 }
