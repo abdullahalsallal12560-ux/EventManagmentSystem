@@ -33,7 +33,7 @@ const DEFAULT_TIME_SLOTS = [
   { startTime: "18:30", endTime: "20:30", location: "Main Auditorium" },
 ];
 
-const NEW_EVENT_PLAN = [
+export const NEW_EVENT_PLAN = [
   // Past (already happened) — approved, with simulated attendance.
   { club: "Robotics Club", title: "Robotics Winter Showcase", date: "2026-06-12", startTime: "14:00", endTime: "17:00", location: "Main Auditorium", past: true },
   { club: "Music Society", title: "Spring Concert Series", date: "2026-07-03", startTime: "18:00", endTime: "21:00", location: "Outdoor Plaza", past: true },

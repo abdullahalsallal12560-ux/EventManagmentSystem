@@ -22,7 +22,12 @@ import { MOCK_USERS, ROLES } from "./mockUsers";
 import { createClub, assignAdminToClub, getClubById } from "./clubsStore";
 import { seedDemoDataIfNeeded } from "./seedDemoData";
 import { seedExpandedDataIfNeeded } from "./seedExpanded";
-import { seedDemoContentIfNeeded, seedNearCapacityEventIfNeeded, seedRejectionFeedbackIfNeeded } from "./seedDemoContent";
+import {
+  seedDemoContentIfNeeded,
+  seedNearCapacityEventIfNeeded,
+  seedRejectionFeedbackIfNeeded,
+  backfillEventCapacityIfNeeded,
+} from "./seedDemoContent";
 import { colorForName } from "../utils/avatarColor";
 
 const USERS_COLLECTION = "users";
@@ -55,6 +60,12 @@ export async function seedUsersIfEmpty() {
     await seedDemoContentIfNeeded();
   } catch (err) {
     console.error("Demo content seeding failed:", err);
+  }
+
+  try {
+    await backfillEventCapacityIfNeeded();
+  } catch (err) {
+    console.error("Event capacity backfill failed:", err);
   }
 
   try {

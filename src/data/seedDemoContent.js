@@ -18,6 +18,8 @@ import { getMembershipsByClub, requestToJoinClub, MEMBERSHIP_STATUS } from "./cl
 import { getProfile, upsertProfile } from "./profilesStore";
 import { addComment, addAnswer, COMMENT_TYPE } from "./commentsStore";
 import { getApprovalsByEvent, recordEventApproval, DECISION } from "./eventApprovalsStore";
+import { EVENT_PLAN } from "./seedDemoData";
+import { NEW_EVENT_PLAN } from "./seedExpanded";
 
 const SEED_LOCK_COLLECTION = "_seed_locks";
 const SEED_LOCK_DOC_ID = "demoContentSeed";
@@ -331,6 +333,28 @@ export async function seedRejectionFeedbackIfNeeded() {
       reviewerId: reviewer.id,
       decision: DECISION.REJECTED,
       feedback: REJECTION_FEEDBACK[event.title],
+    });
+  }
+}
+
+// 6. Backfill maxAttendees onto the original seed events (EVENT_PLAN +
+// NEW_EVENT_PLAN) that predate the field entirely. The one-time batch in
+// seedExpanded.js meant to do this already ran (its lock is marked
+// "complete") from before that backfill logic existed, so it will never
+// fire again on its own. Scoped to the fixed seed title list — not every
+// event with a missing cap — so a real, intentionally-uncapped
+// student-submitted proposal is never touched.
+const SEED_EVENT_TITLES = new Set([...EVENT_PLAN, ...NEW_EVENT_PLAN].map((p) => p.title));
+
+export async function backfillEventCapacityIfNeeded() {
+  const allEvents = await getAllEvents();
+  const targets = allEvents.filter(
+    (e) => SEED_EVENT_TITLES.has(e.title) && typeof e.maxAttendees !== "number"
+  );
+
+  for (const event of targets) {
+    await updateDoc(doc(db, COLLECTIONS.EVENTS, event.id), {
+      maxAttendees: randomInt(30, 150),
     });
   }
 }
