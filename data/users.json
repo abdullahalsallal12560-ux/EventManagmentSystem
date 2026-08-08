@@ -1,0 +1,51 @@
+[
+  {
+    "id": "u1",
+    "name": "Layla Haddad",
+    "email": "layla.student@campus.edu",
+    "password": "password123",
+    "role": "student",
+    "club": null
+  },
+  {
+    "id": "u2",
+    "name": "Omar Nasser",
+    "email": "omar.clubadmin@campus.edu",
+    "password": "password123",
+    "role": "club_admin",
+    "club": "Robotics Club"
+  },
+  {
+    "id": "u3",
+    "name": "Dr. Rana Youssef",
+    "email": "rana.approver@campus.edu",
+    "password": "password123",
+    "role": "university_admin",
+    "club": null
+  },
+  {
+    "id": "u4",
+    "name": "Karim Sami",
+    "email": "karim.staff@campus.edu",
+    "password": "password123",
+    "role": "event_staff",
+    "club": null
+  },
+  {
+    "id": "u5",
+    "name": "Huda Amin",
+    "email": "huda.facility@campus.edu",
+    "password": "password123",
+    "role": "facility_manager",
+    "club": null
+  },
+  {
+    "id": "u_1785580138745",
+    "name": "Abdullah AL-Sallal",
+    "email": "Abdullahalsallal12560@gmail.com",
+    "password": "Abdullah12560",
+    "role": "student",
+    "club": null,
+    "createdAt": "2026-08-01T10:28:58.745Z"
+  }
+]

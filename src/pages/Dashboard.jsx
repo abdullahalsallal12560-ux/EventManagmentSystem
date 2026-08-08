@@ -1,0 +1,740 @@
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { ROLES, ROLE_LABELS, ROLE_COLORS } from "../data/mockUsers";
+import PageShell from "../components/PageShell";
+import StatCard from "../components/StatCard";
+import EventCard from "../components/EventCard";
+import ClubCard from "../components/ClubCard";
+import Avatar from "../components/Avatar";
+import EmptyState from "../components/EmptyState";
+import QRScanner from "../components/QRScanner";
+import { StatCardSkeleton, CardSkeleton, RowSkeleton } from "../components/Skeleton";
+import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
+import { timeAgo } from "../utils/timeAgo";
+
+import { getAllClubs, getClubsByAdmin } from "../data/clubsStore";
+import {
+  getMembershipsByUser,
+  getMembershipsByClub,
+  updateMembershipStatus,
+  requestToJoinClub,
+  MEMBERSHIP_STATUS,
+} from "../data/clubMembershipsStore";
+import { getAllEvents, getEventsByClub, getEventsByStatus, EVENT_STATUS } from "../data/eventsStore";
+import { getRegistrationsByUser, registerForEvent } from "../data/registrationsStore";
+import { getAllCheckins, checkInByRegistrationId } from "../data/checkinsStore";
+import { getAllUsers, getUsersByIds } from "../data/usersStore";
+import { getAllVenues } from "../data/venuesStore";
+import { getAllVenueReservations } from "../data/venueReservationsStore";
+
+const STATUS_PILL = {
+  [EVENT_STATUS.PENDING]: { bg: "var(--warning-bg)", text: "var(--warning)", label: "Pending" },
+  [EVENT_STATUS.APPROVED]: { bg: "var(--success-bg)", text: "var(--success)", label: "Approved" },
+  [EVENT_STATUS.REJECTED]: { bg: "var(--accent-bg)", text: "var(--accent-dark)", label: "Rejected" },
+};
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function RoleBadge({ role }) {
+  const colors = ROLE_COLORS[role];
+  return (
+    <span
+      className="inline-block text-xs font-medium px-2.5 py-1 rounded-full"
+      style={{ background: colors.bg, color: colors.text }}
+    >
+      {ROLE_LABELS[role]}
+    </span>
+  );
+}
+
+function SectionTitle({ children }) {
+  return (
+    <h2 className="text-sm font-medium uppercase tracking-wide mb-3" style={{ color: "var(--text-muted)" }}>
+      {children}
+    </h2>
+  );
+}
+
+export default function Dashboard() {
+  const { user } = useAuth();
+  const toast = useToast();
+
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const showSkeleton = useMinimumLoadingTime(loading, 400);
+
+  async function loadData() {
+    if (!user) return;
+    setLoading(true);
+
+    if (user.role === ROLES.STUDENT) {
+      const [clubs, myMemberships, allEvents, myRegistrations, allCheckins] = await Promise.all([
+        getAllClubs(),
+        getMembershipsByUser(user.id),
+        getAllEvents(),
+        getRegistrationsByUser(user.id),
+        getAllCheckins(),
+      ]);
+      setData({ clubs, myMemberships, allEvents, myRegistrations, allCheckins });
+    } else if (user.role === ROLES.CLUB_ADMIN) {
+      const clubs = await getClubsByAdmin(user.id);
+      const club = clubs[0] || null;
+      if (club) {
+        const [memberships, events] = await Promise.all([
+          getMembershipsByClub(club.id),
+          getEventsByClub(club.id),
+        ]);
+        const approvedIds = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED).map((m) => m.userId);
+        const pendingIds = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.PENDING).map((m) => m.userId);
+        const memberUsers = await getUsersByIds([...approvedIds, ...pendingIds]);
+        setData({ club, memberships, events, memberUsers });
+      } else {
+        setData({ club: null });
+      }
+    } else if (user.role === ROLES.UNIVERSITY_ADMIN) {
+      const [clubs, users, events] = await Promise.all([getAllClubs(), getAllUsers(), getAllEvents()]);
+      setData({ clubs, users, events });
+    } else if (user.role === ROLES.FACILITY_MANAGER) {
+      const [venues, reservations, events] = await Promise.all([
+        getAllVenues(),
+        getAllVenueReservations(),
+        getAllEvents(),
+      ]);
+      setData({ venues, reservations, events });
+    } else {
+      setData({});
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  if (!user) return null;
+
+  async function handleMembershipDecision(membership, status) {
+    setBusyId(membership.id);
+    await updateMembershipStatus(membership.id, status);
+    toast.success(status === MEMBERSHIP_STATUS.APPROVED ? "Member request approved." : "Member request rejected.");
+    setBusyId(null);
+    loadData();
+  }
+
+  return (
+    <PageShell>
+      <div className="mb-8">
+        <RoleBadge role={user.role} />
+        <h1 className="text-3xl font-serif mt-3" style={{ color: "var(--text)" }}>
+          {greeting()}, {user.name.split(" ")[0]}
+        </h1>
+      </div>
+
+      {user.role === ROLES.STUDENT && (
+        <StudentDashboard data={data} loading={showSkeleton} user={user} onRefresh={loadData} />
+      )}
+      {user.role === ROLES.CLUB_ADMIN && (
+        <ClubAdminDashboard data={data} loading={showSkeleton} busyId={busyId} onDecision={handleMembershipDecision} />
+      )}
+      {user.role === ROLES.UNIVERSITY_ADMIN && (
+        <UniversityAdminDashboard data={data} loading={showSkeleton} />
+      )}
+      {user.role === ROLES.EVENT_STAFF && <EventStaffDashboard user={user} />}
+      {user.role === ROLES.FACILITY_MANAGER && (
+        <FacilityManagerDashboard data={data} loading={showSkeleton} />
+      )}
+    </PageShell>
+  );
+}
+
+// ---------------------------------------------------------------- Student
+
+function StudentDashboard({ data, loading, user, onRefresh }) {
+  const toast = useToast();
+  const [busyId, setBusyId] = useState(null);
+
+  async function handleRegister(event) {
+    setBusyId(event.id);
+    const result = await registerForEvent({ eventId: event.id, userId: user.id });
+    setBusyId(null);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Registered for ${event.title}.`);
+    onRefresh();
+  }
+
+  async function handleJoin(club) {
+    setBusyId(club.id);
+    const result = await requestToJoinClub({ userId: user.id, clubId: club.id });
+    setBusyId(null);
+    if (!result.success) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`Requested to join ${club.name}.`);
+    onRefresh();
+  }
+
+  if (loading || !data) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <CardSkeleton /><CardSkeleton /><CardSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  const { clubs, myMemberships, allEvents, myRegistrations, allCheckins } = data;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const approvedMemberships = myMemberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
+  const myRegistrationIds = new Set(myRegistrations.map((r) => r.id));
+  const myCheckins = allCheckins.filter((c) => myRegistrationIds.has(c.registrationId));
+
+  const registeredEventIds = new Set(myRegistrations.filter((r) => r.status !== "cancelled").map((r) => r.eventId));
+  const upcomingApproved = allEvents.filter(
+    (e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today
+  );
+  const upcomingCount = upcomingApproved.filter((e) => registeredEventIds.has(e.id)).length;
+
+  const suggestedEvents = upcomingApproved.filter((e) => !registeredEventIds.has(e.id)).slice(0, 3);
+
+  const myClubIds = new Set(myMemberships.map((m) => m.clubId));
+  const suggestedClubs = clubs.filter((c) => !myClubIds.has(c.id)).slice(0, 3);
+
+  function clubName(clubId) {
+    return clubs.find((c) => c.id === clubId)?.name || "Unknown club";
+  }
+  function eventFor(eventId) {
+    return allEvents.find((e) => e.id === eventId);
+  }
+
+  // Activity feed built from existing membership/registration/checkin data.
+  const feed = [
+    ...myMemberships
+      .filter((m) => m.status !== MEMBERSHIP_STATUS.REJECTED)
+      .map((m) => ({
+        ts: m.joinedAt,
+        icon: m.status === MEMBERSHIP_STATUS.APPROVED ? "🎉" : "⏳",
+        text: `${m.status === MEMBERSHIP_STATUS.APPROVED ? "Joined" : "Requested to join"} ${clubName(m.clubId)}`,
+      })),
+    ...myRegistrations.map((r) => ({
+      ts: r.registeredAt,
+      icon: "🎫",
+      text: `Registered for ${eventFor(r.eventId)?.title || "an event"}`,
+    })),
+    ...myCheckins.map((c) => {
+      const reg = myRegistrations.find((r) => r.id === c.registrationId);
+      return {
+        ts: c.scannedAt,
+        icon: "✅",
+        text: `Attended ${eventFor(reg?.eventId)?.title || "an event"}`,
+      };
+    }),
+  ]
+    .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+    .slice(0, 8);
+
+  return (
+    <div className="space-y-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Clubs Joined" value={approvedMemberships.length} icon="🏛️" />
+        <StatCard label="Events Attended" value={myCheckins.length} icon="✅" />
+        <StatCard label="Upcoming Events" value={upcomingCount} icon="🗓️" />
+      </div>
+
+      <section>
+        <SectionTitle>Upcoming for you</SectionTitle>
+        {suggestedEvents.length === 0 ? (
+          <EmptyState title="No new events right now" description="Check back soon, or browse everything on offer." action={<Link to="/student/events" className="text-sm font-medium" style={{ color: "var(--accent)" }}>Browse events →</Link>} />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {suggestedEvents.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                clubName={clubName(event.clubId)}
+                status={busyId === event.id ? "registering" : "register"}
+                onRegister={handleRegister}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle>Your activity feed</SectionTitle>
+        {feed.length === 0 ? (
+          <EmptyState title="No activity yet" description="Join a club or register for an event to get started." />
+        ) : (
+          <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+            {feed.map((item, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3">
+                <span className="text-lg leading-none">{item.icon}</span>
+                <p className="text-sm flex-1" style={{ color: "var(--text)" }}>{item.text}</p>
+                <span className="text-xs shrink-0" style={{ color: "var(--text-faint)" }}>{timeAgo(item.ts)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle>Clubs you might like</SectionTitle>
+        {suggestedClubs.length === 0 ? (
+          <EmptyState title="You're in every club!" description="There's nothing new to suggest right now." />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {suggestedClubs.map((club) => (
+              <ClubCard
+                key={club.id}
+                club={club}
+                membershipStatus={busyId === club.id ? "requesting" : "none"}
+                onRequest={handleJoin}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- Club Admin
+
+function ClubAdminDashboard({ data, loading, busyId, onDecision }) {
+  if (loading || !data) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+        </div>
+        <RowSkeleton />
+      </div>
+    );
+  }
+
+  if (!data.club) {
+    return (
+      <EmptyState
+        title="No club assigned yet"
+        description="Ask the University Admin to assign you to manage a club."
+      />
+    );
+  }
+
+  const { memberships, events, memberUsers } = data;
+  const approved = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
+  const pending = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.PENDING);
+  const recentEvents = [...events].sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate)).slice(0, 3);
+
+  function userFor(userId) {
+    return memberUsers.find((u) => u.id === userId);
+  }
+
+  return (
+    <div className="space-y-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Club Members" value={approved.length} icon="👥" />
+        <StatCard label="Pending Requests" value={pending.length} icon="⏳" />
+        <StatCard label="Events Proposed" value={events.length} icon="🗓️" />
+      </div>
+
+      {pending.length > 0 && (
+        <section>
+          <SectionTitle>Member requests</SectionTitle>
+          <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+            {pending.map((m) => {
+              const member = userFor(m.userId);
+              const busy = busyId === m.id;
+              return (
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                  <Avatar name={member?.name} size="sm" color={member?.avatarColor} />
+                  <p className="text-sm flex-1" style={{ color: "var(--text)" }}>{member ? member.name : "Unknown user"}</p>
+                  <button
+                    onClick={() => onDecision(m, MEMBERSHIP_STATUS.APPROVED)}
+                    disabled={busy}
+                    className="text-xs text-white rounded-lg px-3 py-1.5 font-medium disabled:opacity-60"
+                    style={{ background: "var(--success)" }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => onDecision(m, MEMBERSHIP_STATUS.REJECTED)}
+                    disabled={busy}
+                    className="text-xs rounded-lg px-3 py-1.5 font-medium border disabled:opacity-60"
+                    style={{ borderColor: "var(--accent-border)", color: "var(--accent-dark)" }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <SectionTitle>Your events</SectionTitle>
+        {recentEvents.length === 0 ? (
+          <EmptyState title="No events proposed yet" action={<Link to="/club/propose-event" className="text-sm font-medium" style={{ color: "var(--accent)" }}>Propose an event →</Link>} />
+        ) : (
+          <div className="space-y-3">
+            {recentEvents.map((ev) => {
+              const pill = STATUS_PILL[ev.status];
+              return (
+                <div key={ev.id} className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{ev.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{ev.proposedDate}</p>
+                  </div>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full shrink-0" style={{ background: pill.bg, color: pill.text }}>
+                    {pill.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle>Club members</SectionTitle>
+        {approved.length === 0 ? (
+          <EmptyState title="No members yet" description="Be the first to invite members." />
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            {approved.slice(0, 8).map((m) => (
+              <Avatar key={m.id} name={userFor(m.userId)?.name} color={userFor(m.userId)?.avatarColor} />
+            ))}
+            {approved.length > 8 && (
+              <span className="text-sm font-medium" style={{ color: "var(--text-muted)" }}>+{approved.length - 8} more</span>
+            )}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// -------------------------------------------------------- University Admin
+
+function UniversityAdminDashboard({ data, loading }) {
+  if (loading || !data) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton />
+        </div>
+        <RowSkeleton />
+      </div>
+    );
+  }
+
+  const { clubs, users, events } = data;
+  const now = new Date();
+  const pendingEvents = events.filter((e) => e.status === EVENT_STATUS.PENDING);
+  const eventsThisMonth = events.filter((e) => {
+    const d = new Date(e.proposedDate);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const recentUsers = [...users]
+    .filter((u) => u.createdAt)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
+
+  function clubName(clubId) {
+    return clubs.find((c) => c.id === clubId)?.name || "Unknown club";
+  }
+
+  return (
+    <div className="space-y-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard label="Total Clubs" value={clubs.length} icon="🏛️" />
+        <StatCard label="Total Users" value={users.length} icon="👥" />
+        <StatCard label="Pending Approvals" value={pendingEvents.length} icon="⏳" />
+        <StatCard label="Events This Month" value={eventsThisMonth.length} icon="🗓️" />
+      </div>
+
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <SectionTitle>Pending event proposals</SectionTitle>
+          <Link to="/admin/events" className="text-sm font-medium" style={{ color: "var(--accent)" }}>View all →</Link>
+        </div>
+        {pendingEvents.length === 0 ? (
+          <EmptyState title="Nothing pending" description="All caught up — new proposals will show up here." />
+        ) : (
+          <div className="space-y-3">
+            {pendingEvents.slice(0, 5).map((ev) => (
+              <div key={ev.id} className="rounded-xl border p-4 flex items-center justify-between gap-3" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{ev.title}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{clubName(ev.clubId)} · {ev.proposedDate}</p>
+                </div>
+                <Link to="/admin/events" className="text-xs font-medium px-3 py-1.5 rounded-lg border shrink-0" style={{ borderColor: "var(--border)", color: "var(--text)" }}>
+                  Review →
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle>Recent activity</SectionTitle>
+        {recentUsers.length === 0 ? (
+          <EmptyState title="No recent accounts" />
+        ) : (
+          <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+            {recentUsers.map((u) => (
+              <div key={u.id} className="flex items-center gap-3 px-4 py-3">
+                <Avatar name={u.name} size="sm" color={u.avatarColor} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm" style={{ color: "var(--text)" }}>{u.name}</p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{ROLE_LABELS[u.role]}</p>
+                </div>
+                <span className="text-xs shrink-0" style={{ color: "var(--text-faint)" }}>{timeAgo(u.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------- Event Staff
+
+const SCAN_STATUS_STYLE = {
+  valid: { bg: "var(--success-bg)", text: "var(--success)", label: "Checked in" },
+  duplicate: { bg: "var(--warning-bg)", text: "var(--warning)", label: "Already checked in" },
+  "wrong-event": { bg: "var(--accent-bg)", text: "var(--accent-dark)", label: "Wrong event" },
+  invalid: { bg: "var(--bg-subtle)", text: "var(--text-faint)", label: "Invalid code" },
+};
+
+// Same code stays in the camera's view for many frames in a row — html5-qrcode
+// fires its success callback on every one of them. Ignore repeats of the same
+// decoded value within this window so one physical scan doesn't produce a
+// flood of duplicate toasts/log entries/checkins.
+const RESCAN_COOLDOWN_MS = 5000;
+
+function EventStaffDashboard({ user }) {
+  const toast = useToast();
+  const [events, setEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [scanLog, setScanLog] = useState([]);
+  const lastScanRef = useRef({ value: null, at: 0 });
+
+  useEffect(() => {
+    async function loadEvents() {
+      const approved = await getEventsByStatus(EVENT_STATUS.APPROVED);
+      const today = new Date().toISOString().slice(0, 10);
+      const upcoming = approved
+        .filter((e) => e.proposedDate >= today)
+        .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate));
+      setEvents(upcoming);
+    }
+    loadEvents();
+  }, []);
+
+  function pushLog(name, status) {
+    const entry = { name, status, time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) };
+    setScanLog((prev) => [entry, ...prev].slice(0, 10));
+  }
+
+  async function handleDecode(decodedText) {
+    const now = Date.now();
+    if (lastScanRef.current.value === decodedText && now - lastScanRef.current.at < RESCAN_COOLDOWN_MS) {
+      return;
+    }
+    lastScanRef.current = { value: decodedText, at: now };
+
+    const result = await checkInByRegistrationId({
+      registrationId: decodedText,
+      eventId: selectedEventId,
+      scannedBy: user.id,
+    });
+
+    let name = "Unknown code";
+    if (result.userId) {
+      const [foundUser] = await getUsersByIds([result.userId]);
+      name = foundUser?.name || "Unknown student";
+    }
+
+    if (result.success) {
+      toast.success(`Checked in: ${name}`);
+      pushLog(name, "valid");
+    } else {
+      toast.error(result.error);
+      pushLog(name, result.status);
+    }
+  }
+
+  const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Events Assigned" value={0} icon="🎫" />
+      </div>
+
+      <div className="rounded-xl border p-6" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+        <p className="text-sm font-medium mb-2" style={{ color: "var(--text)" }}>How to check in attendees</p>
+        <ol className="text-sm space-y-1.5 list-decimal list-inside" style={{ color: "var(--text-muted)" }}>
+          <li>Select the event you're staffing below.</li>
+          <li>Start the scanner and point it at the attendee's ticket QR code.</li>
+          <li>A green toast confirms check-in — duplicates and wrong-event scans are flagged automatically.</li>
+        </ol>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Event</label>
+        <select
+          value={selectedEventId}
+          onChange={(e) => setSelectedEventId(e.target.value)}
+          className="w-full sm:w-96 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+          style={{ borderColor: "var(--border)", background: "var(--bg-card)", color: "var(--text)", "--tw-ring-color": "var(--accent)" }}
+        >
+          <option value="">-- Select an event --</option>
+          {events.map((ev) => (
+            <option key={ev.id} value={ev.id}>{ev.title} · {ev.proposedDate}</option>
+          ))}
+        </select>
+        {events.length === 0 && (
+          <p className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>No approved upcoming events to staff right now.</p>
+        )}
+      </div>
+
+      <QRScanner enabled={!!selectedEvent} onDecode={handleDecode} />
+
+      <section>
+        <SectionTitle>Recent scans</SectionTitle>
+        {scanLog.length === 0 ? (
+          <EmptyState title="No scans yet this session" description="Checked-in attendees will appear here as you scan." />
+        ) : (
+          <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+            {scanLog.map((entry, i) => {
+              const style = SCAN_STATUS_STYLE[entry.status] || SCAN_STATUS_STYLE.invalid;
+              return (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <p className="text-sm flex-1 min-w-0 truncate" style={{ color: "var(--text)" }}>{entry.name}</p>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full shrink-0" style={{ background: style.bg, color: style.text }}>
+                    {style.label}
+                  </span>
+                  <span className="text-xs shrink-0 w-14 text-right" style={{ color: "var(--text-faint)" }}>{entry.time}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// -------------------------------------------------------- Facility Manager
+
+function FacilityManagerDashboard({ data, loading }) {
+  if (loading || !data) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCardSkeleton /><StatCardSkeleton />
+        </div>
+        <RowSkeleton />
+      </div>
+    );
+  }
+
+  const { venues, reservations, events } = data;
+  const now = new Date();
+  const reservationsThisMonth = reservations.filter((r) => {
+    const d = new Date(r.startTime);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const upcoming = reservations
+    .filter((r) => new Date(r.endTime) >= now && r.status !== "cancelled")
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+    .slice(0, 6);
+
+  function eventTitle(eventId) {
+    return events.find((e) => e.id === eventId)?.title || "Unknown event";
+  }
+  function venueName(venueId) {
+    return venues.find((v) => v.id === venueId)?.name || "Unknown venue";
+  }
+  function formatRange(start, end) {
+    const s = new Date(start);
+    const e = new Date(end);
+    const date = s.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const time = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return `${date} · ${time(s)} – ${time(e)}`;
+  }
+
+  return (
+    <div className="space-y-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <StatCard label="Venues Managed" value={venues.length} icon="🏟️" />
+        <StatCard label="Reservations This Month" value={reservationsThisMonth.length} icon="📋" />
+      </div>
+
+      <section>
+        <SectionTitle>Venue reservations</SectionTitle>
+        {upcoming.length === 0 ? (
+          <EmptyState title="No upcoming reservations" description="Reservations will show up here once events book a venue." />
+        ) : (
+          <div className="rounded-xl border divide-y" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+            {upcoming.map((r) => (
+              <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{eventTitle(r.eventId)}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{venueName(r.venueId)}</p>
+                </div>
+                <span className="text-xs shrink-0" style={{ color: "var(--text-faint)" }}>{formatRange(r.startTime, r.endTime)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <SectionTitle>Venues</SectionTitle>
+        {venues.length === 0 ? (
+          <EmptyState title="No venues yet" />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {venues.map((v) => (
+              <div key={v.id} className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{v.name}</p>
+                  <span className="text-xs font-medium px-2.5 py-1 rounded-full shrink-0" style={{ background: "var(--success-bg)", color: "var(--success)" }}>
+                    {v.status || "available"}
+                  </span>
+                </div>
+                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{v.location}</p>
+                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Capacity: {v.capacity}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

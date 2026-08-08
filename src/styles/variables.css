@@ -1,0 +1,93 @@
+/* Dual-mode design token system. Light values live on :root; dark values
+   override them under [data-theme="dark"] on <html> (see ThemeContext). */
+:root {
+  --bg: #F8F7F5;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #F1F0EE;
+  --text: #111111;
+  --text-muted: #6B6B6B;
+  --text-faint: #ADADAD;
+  --border: #E2E0DC;
+
+  --accent: #D62828;
+  --accent-dark: #B01E1E;
+  --accent-bg: #FDF0F0;
+  --accent-border: #F5CECE;
+
+  --success: #2D6A4F;
+  --success-bg: #EAF4EE;
+  --warning: #92400E;
+  --warning-bg: #FEF3C7;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* legacy alias kept so any not-yet-migrated component still renders */
+  --surface: var(--bg-card);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0F0F0F;
+  --bg-card: #1A1A1A;
+  --bg-subtle: #242424;
+  --text: #F0EFED;
+  --text-muted: #909090;
+  --text-faint: #555555;
+  --border: #2E2E2E;
+
+  --accent: #E63535;
+  --accent-dark: #C02020;
+  --accent-bg: #1F1010;
+  --accent-border: #3D1515;
+
+  --success: #4ADE80;
+  --success-bg: #052E16;
+  --warning: #FCD34D;
+  --warning-bg: #1C1204;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.65);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0F0F0F;
+    --bg-card: #1A1A1A;
+    --bg-subtle: #242424;
+    --text: #F0EFED;
+    --text-muted: #909090;
+    --text-faint: #555555;
+    --border: #2E2E2E;
+
+    --accent: #E63535;
+    --accent-dark: #C02020;
+    --accent-bg: #1F1010;
+    --accent-border: #3D1515;
+
+    --success: #4ADE80;
+    --success-bg: #052E16;
+    --warning: #FCD34D;
+    --warning-bg: #1C1204;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.65);
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.font-serif {
+  font-family: "Times New Roman", Times, serif;
+}
