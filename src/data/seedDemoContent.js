@@ -358,3 +358,29 @@ export async function backfillEventCapacityIfNeeded() {
     });
   }
 }
+
+// 7. Replace the generic "<title> — hosted by <club>." placeholder that
+// EVENT_PLAN/NEW_EVENT_PLAN's createEvent() calls used to write with the
+// real per-event description now defined on each plan entry. Guarded by
+// matching that exact old auto-generated pattern (rather than the shared
+// lock), so it's safe to call unconditionally and never overwrites a
+// description someone genuinely wrote by hand.
+const GENERIC_DESCRIPTION_PATTERN = / — hosted by .+\.$/;
+const SEED_EVENT_DESCRIPTIONS = new Map(
+  [...EVENT_PLAN, ...NEW_EVENT_PLAN].map((p) => [p.title, p.description])
+);
+
+export async function backfillEventDescriptionsIfNeeded() {
+  const allEvents = await getAllEvents();
+  const targets = allEvents.filter(
+    (e) =>
+      SEED_EVENT_DESCRIPTIONS.has(e.title) &&
+      (!e.description || GENERIC_DESCRIPTION_PATTERN.test(e.description))
+  );
+
+  for (const event of targets) {
+    await updateDoc(doc(db, COLLECTIONS.EVENTS, event.id), {
+      description: SEED_EVENT_DESCRIPTIONS.get(event.title),
+    });
+  }
+}

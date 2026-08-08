@@ -27,6 +27,7 @@ import {
   seedNearCapacityEventIfNeeded,
   seedRejectionFeedbackIfNeeded,
   backfillEventCapacityIfNeeded,
+  backfillEventDescriptionsIfNeeded,
 } from "./seedDemoContent";
 import { colorForName } from "../utils/avatarColor";
 
@@ -66,6 +67,12 @@ export async function seedUsersIfEmpty() {
     await backfillEventCapacityIfNeeded();
   } catch (err) {
     console.error("Event capacity backfill failed:", err);
+  }
+
+  try {
+    await backfillEventDescriptionsIfNeeded();
+  } catch (err) {
+    console.error("Event description backfill failed:", err);
   }
 
   try {

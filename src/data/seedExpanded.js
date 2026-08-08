@@ -35,15 +35,23 @@ const DEFAULT_TIME_SLOTS = [
 
 export const NEW_EVENT_PLAN = [
   // Past (already happened) — approved, with simulated attendance.
-  { club: "Robotics Club", title: "Robotics Winter Showcase", date: "2026-06-12", startTime: "14:00", endTime: "17:00", location: "Main Auditorium", past: true },
-  { club: "Music Society", title: "Spring Concert Series", date: "2026-07-03", startTime: "18:00", endTime: "21:00", location: "Outdoor Plaza", past: true },
-  { club: "Debate Club", title: "Alumni Debate Showcase", date: "2026-07-25", startTime: "16:00", endTime: "18:00", location: "Room 204", past: true },
+  { club: "Robotics Club", title: "Robotics Winter Showcase", date: "2026-06-12", startTime: "14:00", endTime: "17:00", location: "Main Auditorium", past: true,
+    description: "An end-of-semester showcase of everything the Robotics Club built this term, from line-followers to our competition arm. Live demos all afternoon." },
+  { club: "Music Society", title: "Spring Concert Series", date: "2026-07-03", startTime: "18:00", endTime: "21:00", location: "Outdoor Plaza", past: true,
+    description: "An evening of live performances from student bands and solo acts, closing out the spring semester on the Outdoor Plaza stage." },
+  { club: "Debate Club", title: "Alumni Debate Showcase", date: "2026-07-25", startTime: "16:00", endTime: "18:00", location: "Room 204", past: true,
+    description: "Former Debate Club members return to campus for an exhibition match against our current top team — good-natured rivalry guaranteed." },
   // Upcoming — approved.
-  { club: "Coding & AI Club", title: "Machine Learning Workshop", date: "2026-08-24", startTime: "10:00", endTime: "13:00", location: "Room 204", past: false },
-  { club: "Entrepreneurship Club", title: "Investor Networking Night", date: "2026-09-10", startTime: "18:30", endTime: "21:00", location: "Main Auditorium", past: false },
-  { club: "Environmental Club", title: "Sustainability Fair", date: "2026-09-22", startTime: "11:00", endTime: "15:00", location: "Outdoor Plaza", past: false },
-  { club: "Photography Club", title: "Golden Hour Photo Walk", date: "2026-10-02", startTime: "17:00", endTime: "19:00", location: "Outdoor Plaza", past: false },
-  { club: "Chess Club", title: "Fall Chess Championship", date: "2026-10-15", startTime: "09:00", endTime: "17:00", location: "Room 204", past: false },
+  { club: "Coding & AI Club", title: "Machine Learning Workshop", date: "2026-08-24", startTime: "10:00", endTime: "13:00", location: "Room 204", past: false,
+    description: "A hands-on introduction to machine learning fundamentals — building and training your first model, no prior ML background required. Bring a laptop." },
+  { club: "Entrepreneurship Club", title: "Investor Networking Night", date: "2026-09-10", startTime: "18:30", endTime: "21:00", location: "Main Auditorium", past: false,
+    description: "An evening of structured networking between student entrepreneurs and local investors, with short pitch slots and open mingling after." },
+  { club: "Environmental Club", title: "Sustainability Fair", date: "2026-09-22", startTime: "11:00", endTime: "15:00", location: "Outdoor Plaza", past: false,
+    description: "Stalls, talks, and hands-on activities from campus sustainability initiatives and local eco-friendly vendors — learn what's changing on campus this year." },
+  { club: "Photography Club", title: "Golden Hour Photo Walk", date: "2026-10-02", startTime: "17:00", endTime: "19:00", location: "Outdoor Plaza", past: false,
+    description: "Chase the best light of the day on a guided photo walk through campus's most scenic corners, timed for golden hour." },
+  { club: "Chess Club", title: "Fall Chess Championship", date: "2026-10-15", startTime: "09:00", endTime: "17:00", location: "Room 204", past: false,
+    description: "Our biggest tournament of the year — an all-day Swiss-format championship with trophies for the top finishers and casual boards for spectators." },
 ];
 
 const VENUE_PLAN = [
@@ -109,7 +117,7 @@ export async function seedExpandedDataIfNeeded() {
     const createdEvent = await createEvent({
       clubId: club.id,
       title: plan.title,
-      description: `${plan.title} — hosted by ${club.name}.`,
+      description: plan.description,
       proposedDate: plan.date,
       createdBy: club.adminId,
       status: EVENT_STATUS.APPROVED,

@@ -44,16 +44,26 @@ export const NEW_CLUB_CANDIDATES = [
 ];
 
 export const EVENT_PLAN = [
-  { club: "Robotics Club", title: "Robotics Open House", status: EVENT_STATUS.APPROVED, date: "2026-08-15" },
-  { club: "Photography Club", title: "Campus Photo Walk", status: EVENT_STATUS.APPROVED, date: "2026-08-18" },
-  { club: "Debate Club", title: "Inter-Faculty Debate Night", status: EVENT_STATUS.APPROVED, date: "2026-08-20" },
-  { club: "Coding & AI Club", title: "AI Hackathon Kickoff", status: EVENT_STATUS.APPROVED, date: "2026-08-22" },
-  { club: "Music Society", title: "Open Mic Night", status: EVENT_STATUS.APPROVED, date: "2026-08-25" },
-  { club: "Entrepreneurship Club", title: "Startup Pitch Day", status: EVENT_STATUS.APPROVED, date: "2026-08-28" },
-  { club: "Environmental Club", title: "Campus Clean-Up Drive", status: EVENT_STATUS.PENDING, date: "2026-09-02" },
-  { club: "Drama & Theatre Club", title: "Spring Play Auditions", status: EVENT_STATUS.PENDING, date: "2026-09-05" },
-  { club: "Chess Club", title: "Chess Rating Tournament", status: EVENT_STATUS.REJECTED, date: "2026-09-08" },
-  { club: "Community Volunteering Club", title: "Blood Donation Drive", status: EVENT_STATUS.REJECTED, date: "2026-09-10" },
+  { club: "Robotics Club", title: "Robotics Open House", status: EVENT_STATUS.APPROVED, date: "2026-08-15",
+    description: "Tour the Robotics Club's workshop, see our current builds in action, and get hands-on with our competition-ready robots. No experience needed — just curiosity." },
+  { club: "Photography Club", title: "Campus Photo Walk", status: EVENT_STATUS.APPROVED, date: "2026-08-18",
+    description: "A relaxed walk around campus with fellow photography enthusiasts, hunting for the best light and angles. Bring any camera, phone included — we'll share tips along the way." },
+  { club: "Debate Club", title: "Inter-Faculty Debate Night", status: EVENT_STATUS.APPROVED, date: "2026-08-20",
+    description: "Faculties go head-to-head in a fast-paced debate on current campus and social issues, judged live by a panel. Come cheer on your faculty or just enjoy the arguments." },
+  { club: "Coding & AI Club", title: "AI Hackathon Kickoff", status: EVENT_STATUS.APPROVED, date: "2026-08-22",
+    description: "The opening session for our 48-hour AI hackathon — team formation, problem statements, and a crash-course talk on the tools you'll have access to." },
+  { club: "Music Society", title: "Open Mic Night", status: EVENT_STATUS.APPROVED, date: "2026-08-25",
+    description: "Sign up on the night or in advance to perform — music, poetry, comedy, anything goes. Otherwise just come, relax, and enjoy the lineup." },
+  { club: "Entrepreneurship Club", title: "Startup Pitch Day", status: EVENT_STATUS.APPROVED, date: "2026-08-28",
+    description: "Student founders pitch their ideas to a panel of alumni and local investors for feedback and a shot at seed funding. Open to all students, not just presenters." },
+  { club: "Environmental Club", title: "Campus Clean-Up Drive", status: EVENT_STATUS.PENDING, date: "2026-09-02",
+    description: "Join us for a morning of cleaning up campus grounds and nearby green spaces. Gloves, bags, and refreshments provided — just bring comfortable shoes." },
+  { club: "Drama & Theatre Club", title: "Spring Play Auditions", status: EVENT_STATUS.PENDING, date: "2026-09-05",
+    description: "Auditions for this semester's spring production — all roles and backstage crew positions open, no prior acting experience required." },
+  { club: "Chess Club", title: "Chess Rating Tournament", status: EVENT_STATUS.REJECTED, date: "2026-09-08",
+    description: "A rated Swiss-format tournament open to all skill levels, with prizes for the top three finishers. Boards and clocks provided." },
+  { club: "Community Volunteering Club", title: "Blood Donation Drive", status: EVENT_STATUS.REJECTED, date: "2026-09-10",
+    description: "A campus-wide blood drive run in partnership with the national blood bank. Walk-ins welcome, but registering ahead helps us plan supplies." },
 ];
 
 const FIRST_NAMES = [
@@ -218,7 +228,7 @@ export async function seedDemoDataIfNeeded() {
     const createdEvent = await createEvent({
       clubId: club.id,
       title: plan.title,
-      description: `${plan.title} — hosted by ${club.name}.`,
+      description: plan.description,
       proposedDate: plan.date,
       createdBy: club.adminId,
       status: plan.status,
