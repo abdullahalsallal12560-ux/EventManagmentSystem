@@ -559,10 +559,15 @@ function EventStaffDashboard({ user }) {
     setScanLog((prev) => [entry, ...prev].slice(0, 10));
   }
 
+  // Returns the outcome status ("valid" | "duplicate" | "wrong-event" |
+  // "invalid"), or undefined when the scan was ignored outright (dedupe
+  // window below) — QRScanner uses that return value to drive its
+  // vibration/flash feedback, skipping feedback entirely on undefined so a
+  // silently-ignored repeat scan doesn't still flash red at the user.
   async function handleDecode(decodedText) {
     const now = Date.now();
     if (lastScanRef.current.value === decodedText && now - lastScanRef.current.at < RESCAN_COOLDOWN_MS) {
-      return;
+      return undefined;
     }
     lastScanRef.current = { value: decodedText, at: now };
 
@@ -585,6 +590,8 @@ function EventStaffDashboard({ user }) {
       toast.error(result.error);
       pushLog(name, result.status);
     }
+
+    return result.status;
   }
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;

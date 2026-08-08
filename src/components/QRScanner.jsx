@@ -2,17 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
 import { Camera, CameraOff } from "lucide-react";
 
+// How long the scan loop pauses after any decode, so the same physical QR
+// code sitting in frame isn't immediately re-processed on the next tick.
+const SCAN_PAUSE_MS = 2000;
+// How long the success/error flash overlay stays visible.
+const FLASH_DURATION_MS = 600;
+
 // Native getUserMedia + jsQR scanner — no third-party camera-UI library, so
 // this also works in iOS Safari (html5-qrcode's internal <video> setup
 // never rendered a preview there; playsInline below is what actually fixes
-// that). Fully controlled UI, same props/callback shape as before. Calls
-// `onDecode(decodedText)` for every successfully decoded frame — the
-// caller is responsible for debouncing repeat scans of the same code,
-// since a code sitting in view keeps decoding on every animation frame.
+// that). Fully controlled UI, same props/callback shape as before.
+//
+// `onDecode(decodedText)` is called for every decoded code and may return a
+// value (sync or via Promise): "valid" drives the success feedback (green
+// flash, double-pulse vibration), any other truthy value drives the error
+// feedback (red flash, long vibration), and a falsy return (e.g. the caller
+// silently ignoring a repeat scan) skips feedback entirely.
 export default function QRScanner({ enabled, onDecode }) {
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [flashType, setFlashType] = useState(null); // null | "success" | "error"
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -20,14 +30,46 @@ export default function QRScanner({ enabled, onDecode }) {
   const rafRef = useRef(null);
   const onDecodeRef = useRef(onDecode);
   const frameCountRef = useRef(0);
+  const pausedRef = useRef(false);
+  const pauseTimeoutRef = useRef(null);
+  const flashTimeoutRef = useRef(null);
 
   useEffect(() => {
     onDecodeRef.current = onDecode;
   }, [onDecode]);
 
   useEffect(() => {
-    return () => stopScanner();
+    return () => {
+      stopScanner();
+      if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current);
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    };
   }, []);
+
+  function triggerFeedback(success) {
+    if (navigator.vibrate) {
+      navigator.vibrate(success ? [100, 50, 100] : 400);
+    }
+    setFlashType(success ? "success" : "error");
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    flashTimeoutRef.current = setTimeout(() => setFlashType(null), FLASH_DURATION_MS);
+  }
+
+  // Pauses the scan loop immediately (so the loop stops re-decoding this
+  // same code on the very next frame) while the caller's onDecode handler
+  // — typically an async Firestore round-trip — resolves in the background.
+  async function handleDetectedCode(decodedText) {
+    pausedRef.current = true;
+    if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current);
+    pauseTimeoutRef.current = setTimeout(() => {
+      pausedRef.current = false;
+    }, SCAN_PAUSE_MS);
+
+    const result = await onDecodeRef.current(decodedText);
+    if (result) {
+      triggerFeedback(result === "valid");
+    }
+  }
 
   function scanFrame() {
     const video = videoRef.current;
@@ -39,7 +81,7 @@ export default function QRScanner({ enabled, onDecode }) {
     // (2) while still delivering valid frames, so waiting for 4 meant the
     // loop below never actually ran and jsQR was never called.
     let code = null;
-    const canScan = !!video && !!canvas && video.readyState >= 2 && video.videoWidth > 0;
+    const canScan = !pausedRef.current && !!video && !!canvas && video.readyState >= 2 && video.videoWidth > 0;
 
     if (canScan) {
       if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
@@ -53,7 +95,7 @@ export default function QRScanner({ enabled, onDecode }) {
         inversionAttempts: "attemptBoth",
       });
       if (code && code.data) {
-        onDecodeRef.current(code.data);
+        handleDetectedCode(code.data);
       }
     }
 
@@ -94,6 +136,11 @@ export default function QRScanner({ enabled, onDecode }) {
 
   function stopScanner() {
     frameCountRef.current = 0;
+    pausedRef.current = false;
+    if (pauseTimeoutRef.current) {
+      clearTimeout(pauseTimeoutRef.current);
+      pauseTimeoutRef.current = null;
+    }
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -135,6 +182,17 @@ export default function QRScanner({ enabled, onDecode }) {
           }}
         />
         <canvas ref={canvasRef} style={{ display: "none" }} />
+
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 rounded-lg"
+          style={{
+            pointerEvents: "none",
+            backgroundColor: flashType === "success" ? "rgba(0,200,0,0.3)" : flashType === "error" ? "rgba(220,0,0,0.3)" : "transparent",
+            opacity: flashType ? 1 : 0,
+            transition: "opacity 150ms ease, background-color 150ms ease",
+          }}
+        />
 
         {!active && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
