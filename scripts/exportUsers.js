@@ -5,8 +5,8 @@
 //    (username, password, role, name).
 // 2. clubs-admins.csv: every club from the live Firestore `clubs`
 //    collection, joined against `users` on club.adminId
-//    (clubName, adminUsername, adminName). Clubs without an assigned
-//    admin yet are skipped.
+//    (clubName, adminUsername, adminPassword, adminName). Clubs without an
+//    assigned admin yet are skipped.
 //
 // Reads the live database (not just the static mockUsers.js) for the
 // second CSV because most club admins are assigned at seed time to
@@ -90,11 +90,12 @@ const clubAdminRows = clubs
     return {
       clubName: club.name,
       adminUsername: admin.username,
+      adminPassword: admin.password,
       adminName: admin.name,
     };
   });
 
-writeCsv("clubs-admins.csv", ["clubName", "adminUsername", "adminName"], clubAdminRows);
+writeCsv("clubs-admins.csv", ["clubName", "adminUsername", "adminPassword", "adminName"], clubAdminRows);
 
 if (clubAdminRows.length < clubs.length) {
   console.log(

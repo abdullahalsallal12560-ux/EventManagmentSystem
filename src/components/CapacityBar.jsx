@@ -12,7 +12,10 @@ export default function CapacityBar({ registrationCount, maxAttendees }) {
 
   return (
     <div className="mt-3">
-      <div className="rounded-full overflow-hidden" style={{ height: 6, background: "var(--bg-subtle)" }}>
+      <div
+        className="rounded-full overflow-hidden border"
+        style={{ height: 6, background: "var(--bg-subtle)", borderColor: "var(--border)" }}
+      >
         <div
           className="h-full rounded-full transition-all duration-300"
           style={{ width: `${percent}%`, background: fillColor }}
