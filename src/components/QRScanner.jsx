@@ -1,20 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import jsQR from "jsqr";
 import { Camera, CameraOff } from "lucide-react";
 
-const SCANNER_ELEMENT_ID = "qr-scanner-region";
-
-// Thin wrapper around html5-qrcode's camera-driven scanner. Fully controlled
-// UI (Start/Stop buttons styled to match the app) instead of the library's
-// own chrome. Calls `onDecode(decodedText)` for every successfully decoded
-// frame — the caller is responsible for debouncing repeat scans of the same
-// code, since the camera keeps firing the success callback every frame the
-// code is in view.
+// Native getUserMedia + jsQR scanner — no third-party camera-UI library, so
+// this also works in iOS Safari (html5-qrcode's internal <video> setup
+// never rendered a preview there; playsInline below is what actually fixes
+// that). Fully controlled UI, same props/callback shape as before. Calls
+// `onDecode(decodedText)` for every successfully decoded frame — the
+// caller is responsible for debouncing repeat scans of the same code,
+// since a code sitting in view keeps decoding on every animation frame.
 export default function QRScanner({ enabled, onDecode }) {
   const [active, setActive] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
-  const instanceRef = useRef(null);
+
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(null);
   const onDecodeRef = useRef(onDecode);
 
   useEffect(() => {
@@ -22,44 +25,62 @@ export default function QRScanner({ enabled, onDecode }) {
   }, [onDecode]);
 
   useEffect(() => {
-    return () => {
-      const instance = instanceRef.current;
-      if (instance && instance.isScanning) {
-        instance.stop().then(() => instance.clear()).catch(() => {});
-      }
-    };
+    return () => stopScanner();
   }, []);
+
+  function scanFrame() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
+      if (canvas.width !== video.videoWidth) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data) {
+        onDecodeRef.current(code.data);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(scanFrame);
+  }
 
   async function startScanner() {
     setError("");
     setStarting(true);
-    const instance = new Html5Qrcode(SCANNER_ELEMENT_ID);
-    instanceRef.current = instance;
     try {
-      await instance.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => onDecodeRef.current(decodedText),
-        () => {} // per-frame "no code found" — expected constantly, ignore
-      );
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
       setActive(true);
+      rafRef.current = requestAnimationFrame(scanFrame);
     } catch {
       setError("Couldn't access the camera. Check permissions and try again.");
-      instanceRef.current = null;
+      streamRef.current = null;
     }
     setStarting(false);
   }
 
-  async function stopScanner() {
-    const instance = instanceRef.current;
-    instanceRef.current = null;
-    if (instance && instance.isScanning) {
-      try {
-        await instance.stop();
-        instance.clear();
-      } catch {
-        // already stopped — nothing to clean up
-      }
+  function stopScanner() {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setActive(false);
   }
@@ -69,11 +90,15 @@ export default function QRScanner({ enabled, onDecode }) {
       className="rounded-xl border p-6 flex flex-col items-center text-center"
       style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
     >
-      <div
-        id={SCANNER_ELEMENT_ID}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
         className="w-full max-w-sm overflow-hidden rounded-lg"
         style={{ display: active ? "block" : "none" }}
       />
+      <canvas ref={canvasRef} style={{ display: "none" }} />
 
       {!active && (
         <>
