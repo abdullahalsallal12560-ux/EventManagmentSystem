@@ -98,7 +98,12 @@ export default function Dashboard() {
           if (r.status === "cancelled") return;
           registrationCounts[r.eventId] = (registrationCounts[r.eventId] || 0) + 1;
         });
-        setData({ clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts });
+        const membershipsPerClub = await Promise.all(clubs.map((c) => getMembershipsByClub(c.id)));
+        const clubMemberCounts = {};
+        clubs.forEach((c, i) => {
+          clubMemberCounts[c.id] = membershipsPerClub[i].filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED).length;
+        });
+        setData({ clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts, clubMemberCounts });
       } else if (user.role === ROLES.CLUB_ADMIN) {
         const clubs = await getClubsByAdmin(user.id);
         const club = clubs[0] || null;
@@ -248,7 +253,7 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
     );
   }
 
-  const { clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts } = data;
+  const { clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts, clubMemberCounts } = data;
   const today = new Date().toISOString().slice(0, 10);
 
   const approvedMemberships = myMemberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
@@ -351,7 +356,13 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {suggestedClubs.map((club) => (
-              <ClubCard key={club.id} club={club} membershipStatus="none" onRequest={setApplyClub} />
+              <ClubCard
+                key={club.id}
+                club={club}
+                membershipStatus="none"
+                onRequest={setApplyClub}
+                memberCount={clubMemberCounts[club.id] || 0}
+              />
             ))}
           </div>
         )}

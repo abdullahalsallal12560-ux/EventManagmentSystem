@@ -10,6 +10,7 @@ import { getUsersByIds } from "../data/usersStore";
 import { getCommentsByEvent, addComment, addAnswer, COMMENT_TYPE } from "../data/commentsStore";
 import { placeholderImageUrl } from "../data/placeholderImages";
 import TopBar from "../components/TopBar";
+import CapacityBar from "../components/CapacityBar";
 import Avatar from "../components/Avatar";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
@@ -196,6 +197,10 @@ export default function EventDetail() {
                 Only {spotsLeft} spot{spotsLeft === 1 ? "" : "s"} left
               </span>
             )}
+
+            <div className="max-w-sm">
+              <CapacityBar registrationCount={registrations.length} maxAttendees={event.maxAttendees} />
+            </div>
 
             {event.description && (
               <p className="text-sm mt-6 leading-relaxed max-w-2xl" style={{ color: "var(--text)" }}>{event.description}</p>

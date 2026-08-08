@@ -22,6 +22,7 @@ import { MOCK_USERS, ROLES } from "./mockUsers";
 import { createClub, assignAdminToClub, getClubById } from "./clubsStore";
 import { seedDemoDataIfNeeded } from "./seedDemoData";
 import { seedExpandedDataIfNeeded } from "./seedExpanded";
+import { seedDemoContentIfNeeded, seedNearCapacityEventIfNeeded, seedRejectionFeedbackIfNeeded } from "./seedDemoContent";
 import { colorForName } from "../utils/avatarColor";
 
 const USERS_COLLECTION = "users";
@@ -48,6 +49,24 @@ export async function seedUsersIfEmpty() {
     await seedExpandedDataIfNeeded();
   } catch (err) {
     console.error("Expanded demo data seeding failed:", err);
+  }
+
+  try {
+    await seedDemoContentIfNeeded();
+  } catch (err) {
+    console.error("Demo content seeding failed:", err);
+  }
+
+  try {
+    await seedNearCapacityEventIfNeeded();
+  } catch (err) {
+    console.error("Near-capacity demo event seeding failed:", err);
+  }
+
+  try {
+    await seedRejectionFeedbackIfNeeded();
+  } catch (err) {
+    console.error("Rejection feedback seeding failed:", err);
   }
 }
 

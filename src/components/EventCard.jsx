@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { placeholderImageUrl } from "../data/placeholderImages";
+import CapacityBar from "./CapacityBar";
 
 const STATUS_CTA = {
   register: { label: "Register", disabled: false, style: "solid" },
@@ -70,6 +71,7 @@ export default function EventCard({ event, clubName, status = "register", onRegi
             {event.description}
           </p>
         )}
+        <CapacityBar registrationCount={registrationCount} maxAttendees={event.maxAttendees} />
         <button
           onClick={() => onRegister && onRegister(event)}
           disabled={cta.disabled}

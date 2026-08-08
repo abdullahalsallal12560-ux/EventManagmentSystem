@@ -1,0 +1,6 @@
+username,password,role,name
+220101,12345,student,Layla Haddad
+club_admin,12345,club_admin,Omar Nasser
+uni_admin,12345,university_admin,Dr. Rana Youssef
+event_staff,12345,event_staff,Karim Sami
+fac_manager,12345,facility_manager,Huda Amin

@@ -21,7 +21,7 @@ export async function getCommentsByEvent(eventId) {
 
 export async function addComment(eventId, authorId, authorName, content, type) {
   const id = generateId("cmt");
-  await createDoc(COLLECTIONS.EVENT_COMMENTS, id, {
+  return createDoc(COLLECTIONS.EVENT_COMMENTS, id, {
     eventId,
     authorId,
     authorName,
