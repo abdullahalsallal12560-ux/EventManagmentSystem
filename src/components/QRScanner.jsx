@@ -19,6 +19,7 @@ export default function QRScanner({ enabled, onDecode }) {
   const streamRef = useRef(null);
   const rafRef = useRef(null);
   const onDecodeRef = useRef(onDecode);
+  const frameCountRef = useRef(0);
 
   useEffect(() => {
     onDecodeRef.current = onDecode;
@@ -31,19 +32,38 @@ export default function QRScanner({ enabled, onDecode }) {
   function scanFrame() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    frameCountRef.current += 1;
 
-    if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA) {
-      if (canvas.width !== video.videoWidth) {
+    // HAVE_ENOUGH_DATA (readyState 4) is overly strict for a live camera
+    // stream on iOS Safari — readyState commonly sits at HAVE_CURRENT_DATA
+    // (2) while still delivering valid frames, so waiting for 4 meant the
+    // loop below never actually ran and jsQR was never called.
+    let code = null;
+    const canScan = !!video && !!canvas && video.readyState >= 2 && video.videoWidth > 0;
+
+    if (canScan) {
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
       }
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: "attemptBoth",
+      });
       if (code && code.data) {
         onDecodeRef.current(code.data);
       }
+    }
+
+    if (frameCountRef.current % 60 === 0) {
+      console.log("[QRScanner] frame", frameCountRef.current, {
+        readyState: video?.readyState,
+        videoWidth: video?.videoWidth,
+        videoHeight: video?.videoHeight,
+        codeFound: !!code,
+      });
     }
 
     rafRef.current = requestAnimationFrame(scanFrame);
@@ -73,6 +93,7 @@ export default function QRScanner({ enabled, onDecode }) {
   }
 
   function stopScanner() {
+    frameCountRef.current = 0;
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
