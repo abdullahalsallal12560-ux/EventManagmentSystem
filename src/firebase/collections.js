@@ -10,4 +10,5 @@ export const COLLECTIONS = {
   REGISTRATIONS: "registrations",
   CHECKINS: "checkins",
   PROFILES: "profiles",
+  EVENT_COMMENTS: "event_comments",
 };

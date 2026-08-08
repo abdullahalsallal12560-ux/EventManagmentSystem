@@ -7,6 +7,7 @@ import { getEventById, EVENT_STATUS } from "../data/eventsStore";
 import { getClubById } from "../data/clubsStore";
 import { getRegistrationsByEvent, registerForEvent } from "../data/registrationsStore";
 import { getUsersByIds } from "../data/usersStore";
+import { getCommentsByEvent, addComment, addAnswer, COMMENT_TYPE } from "../data/commentsStore";
 import { placeholderImageUrl } from "../data/placeholderImages";
 import TopBar from "../components/TopBar";
 import Avatar from "../components/Avatar";
@@ -14,6 +15,7 @@ import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
 import { RowSkeleton } from "../components/Skeleton";
 import { useMinimumLoadingTime } from "../utils/useMinimumLoadingTime";
+import { timeAgo } from "../utils/timeAgo";
 
 const STATUS_PILL = {
   [EVENT_STATUS.PENDING]: { bg: "var(--warning-bg)", text: "var(--warning)", label: "Pending review" },
@@ -28,13 +30,22 @@ export default function EventDetail() {
 
   const [event, setEvent] = useState(null);
   const [club, setClub] = useState(null);
+  const [clubAdminUser, setClubAdminUser] = useState(null);
   const [registrations, setRegistrations] = useState([]);
   const [attendees, setAttendees] = useState([]);
   const [myRegistration, setMyRegistration] = useState(null);
+  const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [busy, setBusy] = useState(false);
   const showSkeleton = useMinimumLoadingTime(loading, 400);
+
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentType, setCommentType] = useState(COMMENT_TYPE.QUESTION);
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [answeringId, setAnsweringId] = useState(null);
+  const [answerDraft, setAnswerDraft] = useState("");
+  const [submittingAnswer, setSubmittingAnswer] = useState(false);
 
   async function loadData() {
     setLoading(true);
@@ -45,17 +56,21 @@ export default function EventDetail() {
         setEvent(null);
         return;
       }
-      const [foundClub, eventRegistrations] = await Promise.all([
+      const [foundClub, eventRegistrations, eventComments] = await Promise.all([
         getClubById(foundEvent.clubId),
         getRegistrationsByEvent(eventId),
+        getCommentsByEvent(eventId),
       ]);
       const activeRegistrations = eventRegistrations.filter((r) => r.status !== "cancelled");
       const attendeeUsers = await getUsersByIds(activeRegistrations.map((r) => r.userId));
+      const [foundClubAdmin] = foundClub?.adminId ? await getUsersByIds([foundClub.adminId]) : [];
 
       setEvent(foundEvent);
       setClub(foundClub);
+      setClubAdminUser(foundClubAdmin || null);
       setRegistrations(activeRegistrations);
       setAttendees(attendeeUsers);
+      setComments(eventComments);
       setMyRegistration(user.role === ROLES.STUDENT ? activeRegistrations.find((r) => r.userId === user.id) || null : null);
     } catch (err) {
       console.error(err);
@@ -85,6 +100,40 @@ export default function EventDetail() {
     }
     toast.success(`Registered for ${event.title}.`);
     loadData();
+  }
+
+  const isClubAdminOfEvent = user.role === ROLES.CLUB_ADMIN && club && club.adminId === user.id;
+
+  // Refreshes just the comment list — a full loadData() would drop the
+  // whole page back into its skeleton, which is overkill for posting one
+  // comment or answer.
+  async function refreshComments() {
+    const list = await getCommentsByEvent(eventId);
+    setComments(list);
+  }
+
+  async function handlePostComment(e) {
+    e.preventDefault();
+    if (!commentDraft.trim()) return;
+
+    setSubmittingComment(true);
+    await addComment(eventId, user.id, user.name, commentDraft.trim(), commentType);
+    setSubmittingComment(false);
+    setCommentDraft("");
+    toast.success(commentType === COMMENT_TYPE.QUESTION ? "Question posted." : "Comment posted.");
+    refreshComments();
+  }
+
+  async function handleSubmitAnswer(commentId) {
+    if (!answerDraft.trim()) return;
+
+    setSubmittingAnswer(true);
+    await addAnswer(commentId, user.id, answerDraft.trim());
+    setSubmittingAnswer(false);
+    setAnsweringId(null);
+    setAnswerDraft("");
+    toast.success("Answer posted.");
+    refreshComments();
   }
 
   return (
@@ -205,6 +254,141 @@ export default function EventDetail() {
                       +{attendees.length - 12} more
                     </div>
                   )}
+                </div>
+              )}
+            </section>
+
+            <section className="mt-10">
+              <h2 className="text-sm font-medium uppercase tracking-wide mb-3" style={{ color: "var(--text-muted)" }}>
+                Questions &amp; Comments
+              </h2>
+
+              <form
+                onSubmit={handlePostComment}
+                className="rounded-xl border p-4 mb-5"
+                style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
+              >
+                <div className="flex gap-2 mb-3">
+                  {[COMMENT_TYPE.QUESTION, COMMENT_TYPE.COMMENT].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setCommentType(t)}
+                      className="text-xs px-3 py-1.5 rounded-full border font-medium transition-colors"
+                      style={
+                        commentType === t
+                          ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                          : { borderColor: "var(--border)", color: "var(--text-muted)" }
+                      }
+                    >
+                      {t === COMMENT_TYPE.QUESTION ? "Question" : "Comment"}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder={commentType === COMMENT_TYPE.QUESTION ? "Ask a question about this event..." : "Leave a comment..."}
+                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                  style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text)", "--tw-ring-color": "var(--accent)" }}
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-xs" style={{ color: "var(--text-faint)" }}>{commentDraft.length}/500</p>
+                  <button
+                    type="submit"
+                    disabled={submittingComment || !commentDraft.trim()}
+                    className="text-sm text-white rounded-lg px-4 py-2 font-medium disabled:opacity-60 transition-colors"
+                    style={{ background: "var(--accent)" }}
+                  >
+                    {submittingComment ? "Posting..." : "Submit"}
+                  </button>
+                </div>
+              </form>
+
+              {comments.length === 0 ? (
+                <EmptyState title="No questions yet. Be the first to ask!" />
+              ) : (
+                <div className="space-y-3">
+                  {comments.slice(0, 20).map((c) => (
+                    <div key={c.id} className="rounded-xl border p-4" style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
+                      <div className="flex items-start gap-3">
+                        <Avatar name={c.authorName} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{c.authorName}</p>
+                            <span
+                              className="text-xs font-medium px-2 py-0.5 rounded-full"
+                              style={
+                                c.type === COMMENT_TYPE.QUESTION
+                                  ? { background: "var(--accent-bg)", color: "var(--accent-dark)" }
+                                  : { background: "var(--bg-subtle)", color: "var(--text-muted)" }
+                              }
+                            >
+                              {c.type === COMMENT_TYPE.QUESTION ? "Question" : "Comment"}
+                            </span>
+                            <span className="text-xs" style={{ color: "var(--text-faint)" }}>{timeAgo(c.createdAt)}</span>
+                          </div>
+                          <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: "var(--text)" }}>{c.content}</p>
+
+                          {c.answer ? (
+                            <div className="mt-3 pl-3 border-l-2" style={{ borderColor: "var(--accent)" }}>
+                              <p className="text-xs font-medium" style={{ color: "var(--accent-dark)" }}>
+                                Answered by {clubAdminUser?.name || "Club Admin"}
+                              </p>
+                              <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: "var(--text)" }}>{c.answer}</p>
+                            </div>
+                          ) : c.type === COMMENT_TYPE.QUESTION && isClubAdminOfEvent ? (
+                            answeringId === c.id ? (
+                              <div className="mt-3 space-y-2">
+                                <textarea
+                                  value={answerDraft}
+                                  onChange={(e) => setAnswerDraft(e.target.value)}
+                                  rows={2}
+                                  placeholder="Write a reply..."
+                                  className="w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                                  style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text)", "--tw-ring-color": "var(--accent)" }}
+                                />
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleSubmitAnswer(c.id)}
+                                    disabled={submittingAnswer || !answerDraft.trim()}
+                                    className="text-xs text-white rounded-lg px-3 py-1.5 font-medium disabled:opacity-60 transition-colors"
+                                    style={{ background: "var(--accent)" }}
+                                  >
+                                    {submittingAnswer ? "Posting..." : "Post answer"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAnsweringId(null);
+                                      setAnswerDraft("");
+                                    }}
+                                    className="text-xs rounded-lg px-3 py-1.5 font-medium border transition-colors"
+                                    style={{ borderColor: "var(--border)", color: "var(--text)" }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setAnsweringId(c.id);
+                                  setAnswerDraft("");
+                                }}
+                                className="text-xs font-medium mt-2 transition-colors hover:opacity-70"
+                                style={{ color: "var(--accent)" }}
+                              >
+                                Answer
+                              </button>
+                            )
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
