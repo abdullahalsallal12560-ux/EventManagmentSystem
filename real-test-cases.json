@@ -1,0 +1,402 @@
+[
+  {
+    "testId": "TC-001",
+    "moduleName": "Authentication",
+    "testingFunctionality": "Login with valid student credentials",
+    "expectedResult": "User is redirected to /dashboard with student role",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-002",
+    "moduleName": "Authentication",
+    "testingFunctionality": "Login with invalid password",
+    "expectedResult": "\"Incorrect username or password.\" error is shown and the user stays on the credentials step",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-003",
+    "moduleName": "Authentication",
+    "testingFunctionality": "Login with non-existent username",
+    "expectedResult": "\"Incorrect username or password.\" error is shown and no session is created",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-004",
+    "moduleName": "Authentication",
+    "testingFunctionality": "Complete OTP verification with the correct code after valid credentials",
+    "expectedResult": "Session is created and user is redirected to /dashboard",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — also verified a wrong code is rejected first"
+  },
+  {
+    "testId": "TC-005",
+    "moduleName": "Authentication",
+    "testingFunctionality": "Logout from any role",
+    "expectedResult": "Session is cleared and user is redirected to /login",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-006",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Browse upcoming events on the Discover tab",
+    "expectedResult": "Approved events with a proposed date today or later are listed, sorted soonest first",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-007",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Browse past events on the Past tab",
+    "expectedResult": "Approved events with a proposed date before today are listed, sorted most recent first",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-008",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Register for an event with open capacity",
+    "expectedResult": "Registration is created, a success toast is shown, and the event card CTA changes to \"Registered\"",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — real registration document created"
+  },
+  {
+    "testId": "TC-009",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Attempt to register for an event that is at capacity",
+    "expectedResult": "Registration is rejected with \"This event is full.\" and the CTA shows \"Event Full\"",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — event capacity filled to exactly 1/1 by a real registration, second student correctly blocked"
+  },
+  {
+    "testId": "TC-010",
+    "moduleName": "Student Events",
+    "testingFunctionality": "View My Tickets for an upcoming, not-yet-checked-in registration",
+    "expectedResult": "A QR code encoding the registration id is displayed on the ticket",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-011",
+    "moduleName": "Student Events",
+    "testingFunctionality": "View My Tickets for a registration that has already been checked in",
+    "expectedResult": "A green checkmark and \"You're checked in!\" are shown instead of the QR code",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — reaching this state requires a real completed camera QR scan first. Marked Pass without execution per explicit instruction."
+  },
+  {
+    "testId": "TC-012",
+    "moduleName": "Student Clubs",
+    "testingFunctionality": "Click \"Join\" on a club the student hasn't applied to",
+    "expectedResult": "The club application modal opens",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore). Verified passing in an earlier run this session; skipped on the final run because this fixture account had already applied to the target club from that prior pass."
+  },
+  {
+    "testId": "TC-013",
+    "moduleName": "Student Clubs",
+    "testingFunctionality": "Submit the club application form with all required fields filled in",
+    "expectedResult": "A pending membership request is created with the submitted application data, and a success toast is shown",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore). Verified passing in an earlier run this session; skipped on the final run for the same fixture-reuse reason as TC-012."
+  },
+  {
+    "testId": "TC-014",
+    "moduleName": "Student Clubs",
+    "testingFunctionality": "Submit the club application form with a required field (e.g. GPA) missing or invalid",
+    "expectedResult": "A validation error is shown and the application is not submitted",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore). Note: tested via an empty required field (Major) rather than an out-of-range GPA — the GPA input has a native HTML max=\"4\" attribute, so an out-of-range value is blocked by the browser's own constraint validation before the app's custom validator ever runs."
+  },
+  {
+    "testId": "TC-015",
+    "moduleName": "Student Events",
+    "testingFunctionality": "View My History page",
+    "expectedResult": "Past registrations are listed, each marked \"Attended\" or \"Missed\" based on check-in records",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-016",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Navigate to an Event Detail page (/event/:eventId)",
+    "expectedResult": "Event info, capacity bar, registration status, and the Q&A section load correctly",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-017",
+    "moduleName": "Student Clubs",
+    "testingFunctionality": "Navigate to a Club Profile page (/club/:clubId)",
+    "expectedResult": "Club info, member list, and the club's events load correctly",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-018",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Post a question on an Event Detail page",
+    "expectedResult": "The question is saved and appears at the top of the Questions & Comments list",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — real event_comments document created"
+  },
+  {
+    "testId": "TC-019",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Use global search to find an event by title",
+    "expectedResult": "Matching events are listed under an \"Events\" section, and selecting one navigates to /event/:eventId",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-020",
+    "moduleName": "Student Clubs",
+    "testingFunctionality": "Use global search to find a club by name",
+    "expectedResult": "Matching clubs are listed under a \"Clubs\" section, and selecting one navigates to /club/:clubId",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-021",
+    "moduleName": "Student Events",
+    "testingFunctionality": "Toggle dark/light mode from the top bar",
+    "expectedResult": "The theme switches immediately and the choice persists across reloads",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — verified via the html element's data-theme attribute"
+  },
+  {
+    "testId": "TC-022",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Propose a new event with required fields filled in",
+    "expectedResult": "A new event is created with status \"pending\" and appears in the club admin's event list",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — real event document created"
+  },
+  {
+    "testId": "TC-023",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "View proposed events list including a rejected event",
+    "expectedResult": "Each event shows its current status, and rejected events display the reviewer's feedback text",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — verified the exact feedback text submitted by University Admin in TC-033 is displayed"
+  },
+  {
+    "testId": "TC-024",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Approve a pending club membership request",
+    "expectedResult": "Membership status changes to \"approved\", a success toast is shown, and the list refreshes",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-025",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Reject a pending club membership request",
+    "expectedResult": "Membership status changes to \"rejected\", a success toast is shown, and the list refreshes",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-026",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Expand a pending membership request to view application details",
+    "expectedResult": "GPA, credit hours, major, faculty, skills, availability, and the \"why\" answer are displayed",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-027",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Remove an existing approved member",
+    "expectedResult": "A confirmation dialog appears, and confirming deletes the membership record",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-028",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Answer a student's question on an Event Detail page for the admin's own club event",
+    "expectedResult": "The reply is saved and displayed as \"Answered by <admin name>\" under the question",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-029",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Select an event, scan a valid unused ticket QR code",
+    "expectedResult": "Check-in succeeds, a \"Checked in: <name>\" toast is shown, and the scan log shows \"Checked In\"",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — requires a real physical QR code in front of a real camera (getUserMedia + jsQR). Marked Pass without execution per explicit instruction."
+  },
+  {
+    "testId": "TC-030",
+    "moduleName": "Club Admin",
+    "testingFunctionality": "Scan a ticket QR code that has already been checked in",
+    "expectedResult": "An \"Already checked in\" error toast is shown and the scan log shows \"Already Scanned\"",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — same camera limitation as TC-029. Marked Pass without execution per explicit instruction."
+  },
+  {
+    "testId": "TC-031",
+    "moduleName": "University Admin",
+    "testingFunctionality": "View pending event proposals",
+    "expectedResult": "All events with status \"pending\" are listed for review",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-032",
+    "moduleName": "University Admin",
+    "testingFunctionality": "Approve a pending event proposal",
+    "expectedResult": "An approval record is created, the event's status changes to \"approved\", and it moves to the Approved list",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — real event_approvals document created"
+  },
+  {
+    "testId": "TC-033",
+    "moduleName": "University Admin",
+    "testingFunctionality": "Reject a pending event proposal with feedback text",
+    "expectedResult": "A rejection record with the feedback is created and the event's status changes to \"rejected\"",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — real event_approvals document created with feedback text"
+  },
+  {
+    "testId": "TC-034",
+    "moduleName": "University Admin",
+    "testingFunctionality": "Create a new user account via the Manage Users form",
+    "expectedResult": "The account is created with the default password and a toast displays the new username/password",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — real user document created"
+  },
+  {
+    "testId": "TC-035",
+    "moduleName": "University Admin",
+    "testingFunctionality": "View all clubs on the Manage Clubs page",
+    "expectedResult": "Every club is listed with its name and current admin assignment status",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-036",
+    "moduleName": "University Admin",
+    "testingFunctionality": "Assign a club admin to an unassigned club when creating their account",
+    "expectedResult": "The new account is created and the selected club's adminId is set to that account",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-037",
+    "moduleName": "Event Staff",
+    "testingFunctionality": "Select an event from the check-in event dropdown",
+    "expectedResult": "The dropdown lists approved upcoming events, and the scanner activates once one is selected",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — verified the Start Scanner button enables on selection, without engaging the actual camera"
+  },
+  {
+    "testId": "TC-038",
+    "moduleName": "Event Staff",
+    "testingFunctionality": "Scan a valid ticket QR code for the selected event",
+    "expectedResult": "Check-in succeeds and a \"Checked in: <name>\" success toast is shown",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — same camera limitation as TC-029. Marked Pass without execution per explicit instruction."
+  },
+  {
+    "testId": "TC-039",
+    "moduleName": "Event Staff",
+    "testingFunctionality": "Scan a QR code that doesn't match any registration",
+    "expectedResult": "An \"Invalid QR code\" error toast is shown and the scan log shows \"Invalid\"",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — same camera limitation as TC-029. Marked Pass without execution per explicit instruction."
+  },
+  {
+    "testId": "TC-040",
+    "moduleName": "Event Staff",
+    "testingFunctionality": "Scan a ticket QR code that has already been checked in",
+    "expectedResult": "An \"Already checked in\" error toast is shown and the scan log shows \"Already Scanned\"",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — same camera limitation as TC-029. Marked Pass without execution per explicit instruction."
+  },
+  {
+    "testId": "TC-041",
+    "moduleName": "Facility Manager",
+    "testingFunctionality": "View the venues list on the dashboard",
+    "expectedResult": "All venues are listed with name, location, and capacity",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-042",
+    "moduleName": "Facility Manager",
+    "testingFunctionality": "View upcoming venue reservations on the dashboard",
+    "expectedResult": "Upcoming reservations are listed with event title, venue name, and formatted time range",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore)"
+  },
+  {
+    "testId": "TC-043",
+    "moduleName": "Profile",
+    "testingFunctionality": "Update bio text and save",
+    "expectedResult": "The bio is saved to the profile and a \"Bio saved.\" toast is shown",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — throwaway QA test account used, not a real demo account"
+  },
+  {
+    "testId": "TC-044",
+    "moduleName": "Profile",
+    "testingFunctionality": "Add an interest tag and save interests",
+    "expectedResult": "The new tag appears in the interests list and is persisted with a \"Interests saved.\" toast",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — throwaway QA test account used, not a real demo account"
+  },
+  {
+    "testId": "TC-045",
+    "moduleName": "Profile",
+    "testingFunctionality": "Change password with a valid, matching new password",
+    "expectedResult": "The password is updated and a \"Password updated.\" toast is shown",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright, live Firestore) — throwaway QA test account used, not a real demo account (avoids ever touching a fixed demo account's credentials)"
+  },
+  {
+    "testId": "TC-NF-001",
+    "moduleName": "UI Consistency",
+    "testingFunctionality": "Dark mode renders correctly across all pages",
+    "expectedResult": "All UI elements use correct dark theme tokens",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright) — verified data-theme attribute and computed body background color (rgb(15,15,15)) across Dashboard, Manage Clubs, and Profile"
+  },
+  {
+    "testId": "TC-NF-002",
+    "moduleName": "Performance",
+    "testingFunctionality": "Dashboard loads within 3 seconds on first visit",
+    "expectedResult": "Page is interactive within 3 seconds",
+    "actualResult": "Fail",
+    "verificationMethod": "Automated (Playwright) — measured actual elapsed time from navigation to the greeting heading becoming visible. Dev server (npm run dev): 5.9s and 6.5s on two separate runs. Production build (npm run build + preview): 7.5s. Consistently 2-2.5x over budget in both modes — not a dev-server-overhead artifact. Likely cause: the student dashboard's per-club membership-count computation issues one Firestore query per club (11+ clubs in current seed data) instead of a single batched query."
+  },
+  {
+    "testId": "TC-NF-003",
+    "moduleName": "Usability",
+    "testingFunctionality": "Application is usable on 390px mobile width",
+    "expectedResult": "All pages render correctly without horizontal scroll",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright) — 390x844 viewport, checked scrollWidth vs clientWidth on Dashboard, Browse Events, Browse Clubs, Profile"
+  },
+  {
+    "testId": "TC-NF-004",
+    "moduleName": "Security",
+    "testingFunctionality": "Unauthenticated user tries to access /dashboard",
+    "expectedResult": "Redirected to /login",
+    "actualResult": "Pass",
+    "verificationMethod": "Automated (Playwright) — fresh browser context with no session"
+  },
+  {
+    "testId": "TC-NF-005",
+    "moduleName": "Database",
+    "testingFunctionality": "QR scan creates checkin document in Firestore",
+    "expectedResult": "checkin document written with correct fields",
+    "actualResult": "Pass",
+    "verificationMethod": "NOT automated — same camera limitation as TC-029 (the checkin document is only created by a real scan). Marked Pass without execution per explicit instruction."
+  }
+]

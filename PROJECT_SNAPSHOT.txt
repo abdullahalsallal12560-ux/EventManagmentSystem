@@ -1,0 +1,1002 @@
+================================================================================
+CAMPUS EVENTS — PROJECT SNAPSHOT
+Generated from a full read of the codebase. React 19 + Vite + Tailwind CSS v4,
+Firebase Firestore client SDK only (no Admin SDK, no Cloud Functions, no
+Firebase Auth — custom username/password auth against a `users` collection).
+================================================================================
+
+
+================================================================================
+1. DIRECTORY TREE OF src/
+================================================================================
+
+src/
+├── App.jsx
+├── main.jsx
+├── index.css
+├── assets/
+│   ├── hero.png
+│   ├── react.svg
+│   └── vite.svg
+├── components/
+│   ├── Avatar.jsx
+│   ├── CapacityBar.jsx
+│   ├── CheckInScanner.jsx
+│   ├── ClubApplicationModal.jsx
+│   ├── ClubCard.jsx
+│   ├── ConfirmDialog.jsx
+│   ├── EmptyState.jsx
+│   ├── ErrorState.jsx
+│   ├── EventCard.jsx
+│   ├── Logo.jsx
+│   ├── OnboardingTour.jsx
+│   ├── OutlookOtpToast.jsx        (defined, currently unused/unreferenced)
+│   ├── PageShell.jsx
+│   ├── ProtectedRoute.jsx
+│   ├── QRCodeModal.jsx
+│   ├── QRScanner.jsx
+│   ├── SearchOverlay.jsx
+│   ├── Skeleton.jsx
+│   ├── SmsOtpToast.jsx
+│   ├── StatCard.jsx
+│   └── TopBar.jsx
+├── context/
+│   ├── AuthContext.jsx
+│   ├── OnboardingContext.jsx
+│   ├── ThemeContext.jsx
+│   └── ToastContext.jsx
+├── data/
+│   ├── checkinsStore.js
+│   ├── clubMembershipsStore.js
+│   ├── clubsStore.js
+│   ├── commentsStore.js
+│   ├── eventApprovalsStore.js
+│   ├── eventsStore.js
+│   ├── mockUsers.js
+│   ├── onboardingSteps.js
+│   ├── placeholderImages.js
+│   ├── profilesStore.js
+│   ├── registrationsStore.js
+│   ├── seedDemoContent.js
+│   ├── seedDemoData.js
+│   ├── seedExpanded.js
+│   ├── usersStore.js
+│   ├── venueReservationsStore.js
+│   └── venuesStore.js
+├── firebase/
+│   ├── collections.js
+│   ├── config.js
+│   └── firestoreHelpers.js
+├── pages/
+│   ├── ApproveEvents.jsx
+│   ├── BrowseClubs.jsx
+│   ├── BrowseEvents.jsx
+│   ├── ClubProfile.jsx
+│   ├── Dashboard.jsx
+│   ├── EventDetail.jsx
+│   ├── EventHistory.jsx
+│   ├── Login.jsx
+│   ├── ManageClubMembers.jsx
+│   ├── ManageClubs.jsx
+│   ├── ManageUsers.jsx
+│   ├── MyRegistrations.jsx
+│   ├── Profile.jsx
+│   ├── ProposeEvent.jsx
+│   └── Unauthorized.jsx
+├── styles/
+│   └── variables.css
+└── utils/
+    ├── avatarColor.js
+    ├── timeAgo.js
+    └── useMinimumLoadingTime.js
+
+
+================================================================================
+2. FULL App.jsx CONTENT
+================================================================================
+
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { ToastProvider } from "./context/ToastContext";
+import { OnboardingProvider } from "./context/OnboardingContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Unauthorized from "./pages/Unauthorized";
+import ManageClubs from "./pages/ManageClubs";
+import ManageUsers from "./pages/ManageUsers";
+import Profile from "./pages/Profile";
+import ProposeEvent from "./pages/ProposeEvent";
+import ApproveEvents from "./pages/ApproveEvents";
+import ManageClubMembers from "./pages/ManageClubMembers";
+import BrowseClubs from "./pages/BrowseClubs";
+import BrowseEvents from "./pages/BrowseEvents";
+import MyRegistrations from "./pages/MyRegistrations";
+import EventHistory from "./pages/EventHistory";
+import ClubProfile from "./pages/ClubProfile";
+import EventDetail from "./pages/EventDetail";
+import { ROLES } from "./data/mockUsers";
+
+function App() {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <OnboardingProvider>
+            <BrowserRouter>
+              <Routes>
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/unauthorized" element={<Unauthorized />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/club/:clubId"
+                element={
+                  <ProtectedRoute>
+                    <ClubProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/event/:eventId"
+                element={
+                  <ProtectedRoute>
+                    <EventDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/clubs"
+                element={
+                  <ProtectedRoute roles={[ROLES.UNIVERSITY_ADMIN]}>
+                    <ManageClubs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute roles={[ROLES.UNIVERSITY_ADMIN]}>
+                    <ManageUsers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/club/propose-event"
+                element={
+                  <ProtectedRoute roles={[ROLES.CLUB_ADMIN]}>
+                    <ProposeEvent />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/club/members"
+                element={
+                  <ProtectedRoute roles={[ROLES.CLUB_ADMIN]}>
+                    <ManageClubMembers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/events"
+                element={
+                  <ProtectedRoute roles={[ROLES.UNIVERSITY_ADMIN]}>
+                    <ApproveEvents />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/clubs"
+                element={
+                  <ProtectedRoute roles={[ROLES.STUDENT]}>
+                    <BrowseClubs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/events"
+                element={
+                  <ProtectedRoute roles={[ROLES.STUDENT]}>
+                    <BrowseEvents />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/registrations"
+                element={
+                  <ProtectedRoute roles={[ROLES.STUDENT]}>
+                    <MyRegistrations />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/history"
+                element={
+                  <ProtectedRoute roles={[ROLES.STUDENT]}>
+                    <EventHistory />
+                  </ProtectedRoute>
+                }
+              />
+              </Routes>
+            </BrowserRouter>
+          </OnboardingProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  );
+}
+
+export default App;
+
+Provider nesting order (outermost to innermost): ThemeProvider > ToastProvider
+> AuthProvider > OnboardingProvider > BrowserRouter > Routes.
+
+
+================================================================================
+3. ALL ROUTES WITH ROLES
+================================================================================
+
+Path                        | Component         | Allowed role(s)
+-----------------------------|-------------------|--------------------------------
+/                            | (redirect)        | -> /login via <Navigate>
+/login                       | Login             | public (no ProtectedRoute)
+/unauthorized                | Unauthorized      | public (no ProtectedRoute)
+/dashboard                   | Dashboard         | any authenticated user
+/profile                     | Profile           | any authenticated user
+/club/:clubId                | ClubProfile       | any authenticated user
+/event/:eventId              | EventDetail       | any authenticated user
+/admin/clubs                 | ManageClubs       | university_admin
+/admin/users                 | ManageUsers       | university_admin
+/admin/events                | ApproveEvents     | university_admin
+/club/propose-event          | ProposeEvent      | club_admin
+/club/members                | ManageClubMembers | club_admin
+/student/clubs                | BrowseClubs       | student
+/student/events               | BrowseEvents      | student
+/student/registrations        | MyRegistrations   | student
+/student/history               | EventHistory      | student
+
+Notes:
+- ProtectedRoute (src/components/ProtectedRoute.jsx) redirects to /login if
+  no user is logged in, or to /unauthorized if the user's role isn't in the
+  `roles` array (when one is passed). Renders null while the session is
+  still being restored (loading === true) to avoid a flicker/false redirect.
+- Event Staff and Facility Manager have NO dedicated routes — their entire
+  workflow lives inside /dashboard, which renders a different sub-dashboard
+  component per role (StudentDashboard, ClubAdminDashboard,
+  UniversityAdminDashboard, EventStaffDashboard, FacilityManagerDashboard).
+- Global search (SearchOverlay) and the Login page's "Demo Accounts" quick-fill
+  panel are in-page overlays, not routes.
+
+
+================================================================================
+4. ALL FIRESTORE COLLECTIONS AND FIELDS
+================================================================================
+
+Collection name constants live in src/firebase/collections.js (COLLECTIONS).
+
+--- users  (COLLECTIONS.USERS = "users") ---
+  id            string (doc id) - "u_<timestamp>" (createUserByAdmin) or
+                "u_stu_<i>_<timestamp>" (seed) or fixed "u1"-"u5" (MOCK_USERS)
+  name          string
+  username      string - login identifier, unique
+  password      string - plaintext, default "12345" for admin-created/seeded
+  role          string - "student" | "club_admin" | "university_admin" |
+                "event_staff" | "facility_manager"
+  universityId  string | null
+  phone         string | null
+  avatarColor   string - deterministic hex color derived from name
+  createdAt     string (ISO datetime) - present on admin-created/seeded
+                accounts; ABSENT on the fixed MOCK_USERS-upserted u1-u5
+
+--- clubs  (COLLECTIONS.CLUBS = "clubs") ---
+  id            string (doc id) - "club_<timestamp>_<rand>"
+  name          string
+  description   string - defaults to ""
+  adminId       string | null - FK -> users
+  imageUrl      string - defaults to a generated picsum.photos placeholder
+
+--- club_memberships  (COLLECTIONS.CLUB_MEMBERSHIPS = "club_memberships") ---
+  id              string (doc id) - "mem_<timestamp>_<rand>" or seed variant
+  userId          string - FK -> users
+  clubId          string - FK -> clubs
+  status          string - "pending" | "approved" | "rejected"
+  joinedAt        string (ISO datetime)
+  applicationData object | null - { gpa, major, faculty, creditHours,
+                  skills: string[], why, availability: string[] }
+
+--- events  (COLLECTIONS.EVENTS = "events") ---
+  id               string (doc id) - "evt_<timestamp>_<rand>"
+  clubId           string - FK -> clubs
+  title            string
+  description      string - defaults to ""
+  proposedDate     string (date, "YYYY-MM-DD")
+  status           string - "pending" | "approved" | "rejected"
+  createdBy        string | null - FK -> users
+  imageUrl         string - defaults to a generated picsum.photos placeholder
+  startTime        string ("HH:MM") - defaults to ""
+  endTime          string ("HH:MM") - defaults to ""
+  location         string - defaults to ""
+  attendeeCount    number - starts at 0, incremented on each valid check-in
+  maxAttendees     number | null - registration cap
+  nearCapacityDemo boolean - present (true) on at most one event; one-time
+                   demo-seed marker so the near-capacity adjustment never
+                   re-runs; absent everywhere else
+
+--- event_approvals  (COLLECTIONS.EVENT_APPROVALS = "event_approvals") ---
+  id           string (doc id) - "appr_<timestamp>_<rand>"
+  eventId      string - FK -> events
+  reviewerId   string - FK -> users
+  decision     string - "approved" | "rejected"
+  feedback     string - defaults to ""
+  decisionAt   string (ISO datetime)
+
+--- venues  (COLLECTIONS.VENUES = "venues") ---
+  id         string (doc id) - "venue_<timestamp>_<rand>"
+  name       string
+  capacity   number - coerced via Number(capacity)
+  location   string
+  status     string - only value ever written: "available"
+
+--- venue_reservations  (COLLECTIONS.VENUE_RESERVATIONS = "venue_reservations") ---
+  id          string (doc id) - "resv_<timestamp>_<rand>"
+  eventId     string - FK -> events
+  venueId     string - FK -> venues
+  startTime   string (date/time, parsed via new Date(...))
+  endTime     string (date/time, parsed via new Date(...))
+  status      string - written as "confirmed"; "cancelled" checked in
+              conflict logic but never set anywhere in code
+
+--- registrations  (COLLECTIONS.REGISTRATIONS = "registrations") ---
+  id            string (doc id) - "reg_<timestamp>_<rand>" or seed variant
+  eventId       string - FK -> events
+  userId        string - FK -> users
+  qrCode        string - uppercased generated id; DISPLAY/LEGACY FIELD ONLY —
+                the actual ticket QR encodes the registration's document id,
+                and check-in looks up by registrationId, not this field
+  status        string - written as "registered"; "cancelled" is checked
+                everywhere active-registration counts are computed, but
+                nothing in the current UI actually sets it
+  registeredAt  string (ISO datetime)
+
+--- checkins  (COLLECTIONS.CHECKINS = "checkins") ---
+  id             string (doc id) - "chk_<timestamp>_<rand>"
+  registrationId string - FK -> registrations
+  eventId        string - FK -> events, denormalized; ONLY present on
+                 check-ins created via the real scanner flow
+                 (checkInByRegistrationId) — seed-created check-ins omit it
+  userId         string - FK -> users, denormalized; same scanner-only caveat
+  scannedBy      string | null - FK -> users
+  scannedAt      string (ISO datetime)
+  status         string - only value ever written: "valid"
+  note           string - defaults to ""; not editable from the UI
+
+--- profiles  (COLLECTIONS.PROFILES = "profiles") ---
+  (doc id)     string - IS the userId (one profile per user)
+  userId       string - FK -> users, duplicated into the document body
+  bio          string
+  avatarUrl    string | null - no upload flow, always null in current code
+  socialLinks  object - { instagram, linkedin, twitter }, each a string
+  interests    string[]
+
+--- event_comments  (COLLECTIONS.EVENT_COMMENTS = "event_comments") ---
+  id          string (doc id) - "cmt_<timestamp>_<rand>"
+  eventId     string - FK -> events
+  authorId    string - FK -> users
+  authorName  string - denormalized at post time
+  content     string - truncated to 500 chars on write
+  createdAt   string (ISO datetime)
+  type        string - "question" | "comment"
+  answeredBy  string | null - FK -> users, set once the club admin replies
+  answer      string | null
+  answeredAt  string (ISO datetime) | null
+
+--- _seed_locks  (internal — NOT in the COLLECTIONS registry / ERD) ---
+  One-time run-once guards, each an atomic Firestore transaction on a fixed
+  document id, so React StrictMode's double-invoke (or two tabs) can't run
+  the same seed twice.
+  (doc id)     string - "demoDataSeed" | "expandedDataSeed" | "demoContentSeed"
+  status       string - "in_progress", then "complete" (or "skipped" if
+               seedExpandedDataIfNeeded found >=15 events already present)
+  startedAt    string (ISO datetime)
+  completedAt  string (ISO datetime)
+
+  Several newer seed/backfill steps (seedNearCapacityEventIfNeeded,
+  seedRejectionFeedbackIfNeeded, backfillEventCapacityIfNeeded,
+  backfillEventDescriptionsIfNeeded — all in seedDemoContent.js)
+  deliberately do NOT use a _seed_locks document. They guard themselves
+  per-item instead (a marker field, or checking whether the target data
+  already exists), which makes them safe to call unconditionally on every
+  load — including retroactively fixing data written before that guard
+  logic existed, which a _seed_locks-gated step could never do once marked
+  "complete".
+
+
+================================================================================
+5. ALL STORE FUNCTIONS (src/data/*.js)
+================================================================================
+
+--- checkinsStore.js ---
+  checkInByRegistrationId({ registrationId, eventId, scannedBy })
+      Full validation chain: registration exists -> belongs to selected
+      event -> not already checked in -> creates the checkin + bumps
+      attendeeCount. Returns { success, status, ... }, status one of
+      "valid" | "invalid" | "wrong-event" | "duplicate".
+  getCheckinsByEvent(eventId, allRegistrations)
+      Filters check-ins down to those belonging to the given event.
+  getAllCheckins()
+      Fetches every check-in document.
+  getCheckinByRegistration(registrationId)
+      Fetches the check-in (if any) for a registration; duplicate-scan guard.
+
+--- clubMembershipsStore.js ---
+  requestToJoinClub({ userId, clubId, applicationData })
+      Creates a pending membership request; blocks a duplicate while one is
+      already pending or approved (rejected can be resubmitted).
+  getMembershipsByUser(userId)
+  getMembershipsByClub(clubId)
+  updateMembershipStatus(membershipId, status)
+  removeMember(membershipId)
+  (also exports constant MEMBERSHIP_STATUS)
+
+--- clubsStore.js ---
+  createClub({ name, description, adminId, imageUrl })
+  getClubById(id)
+  getAllClubs()
+  getClubsByAdmin(adminId)
+  assignAdminToClub(clubId, adminId)
+  updateClub(clubId, { name, description })
+  deleteClub(clubId)
+
+--- commentsStore.js ---
+  getCommentsByEvent(eventId)          - newest first
+  addComment(eventId, authorId, authorName, content, type)
+      content truncated to 500 chars; returns the created document.
+  addAnswer(commentId, answeredBy, answer)
+  (also exports constant COMMENT_TYPE)
+
+--- eventApprovalsStore.js ---
+  recordEventApproval({ eventId, reviewerId, decision, feedback })
+  getApprovalsByEvent(eventId)
+  getApprovalsByReviewer(reviewerId)
+  (also exports constant DECISION)
+
+--- eventsStore.js ---
+  createEvent({ clubId, title, description, proposedDate, createdBy,
+               imageUrl, status, startTime, endTime, location, maxAttendees })
+      status defaults to "pending"; imageUrl defaults to a placeholder.
+  incrementAttendeeCount(eventId)
+  getEventById(id)
+  getAllEvents()
+  getEventsByClub(clubId)
+  getEventsByStatus(status)
+  updateEventStatus(eventId, status)
+  (also exports constant EVENT_STATUS)
+
+--- mockUsers.js ---
+  No exported functions; no Firestore access.
+  Exports ROLES, ROLE_LABELS, ROLE_COLORS, MOCK_USERS (the 5 fixed demo
+  accounts, u1-u5).
+
+--- onboardingSteps.js ---
+  No exported functions; no Firestore access.
+  Exports ONBOARDING_STEPS, a per-ROLES array of { target, text } steps.
+
+--- placeholderImages.js ---
+  slugify(text)                        - pure string utility
+  placeholderImageUrl(seed)            - deterministic picsum.photos URL
+
+--- profilesStore.js ---
+  getProfile(userId)                   - doc id == userId
+  upsertProfile(userId, data)          - merge-write
+
+--- registrationsStore.js ---
+  registerForEvent({ eventId, userId })
+      Blocks a duplicate active registration; rejects once maxAttendees is
+      reached with error "This event is full."
+  getRegistrationsByEvent(eventId)
+  getRegistrationsByUser(userId)
+  getAllRegistrations()
+      Fetches every registration at once (avoids one query per event card).
+  getRegistrationById(registrationId)
+      What a ticket's QR code actually encodes; check-in resolves through
+      this, not the qrCode field.
+
+--- seedDemoData.js ---
+  seedDemoDataIfNeeded()
+      First-wave one-time seed (gated by "demoDataSeed" lock): base + 7 new
+      clubs, a club admin per unassigned club, 2 extra event-staff/
+      facility-manager accounts, 100 students round-robined across clubs
+      with approved memberships, and 10 EVENT_PLAN events (mixed pending/
+      approved/rejected) with registrations for the approved ones.
+  (also exports constants NEW_CLUB_CANDIDATES, EVENT_PLAN)
+
+--- seedExpanded.js ---
+  seedExpandedDataIfNeeded()
+      Second-wave one-time seed (gated by "expandedDataSeed" lock, skipped
+      outright if >=15 events already exist): backfills startTime/endTime/
+      location/maxAttendees onto pre-existing events, creates 8
+      NEW_EVENT_PLAN events (3 past w/ simulated attendance, 5 upcoming)
+      with registrations from each club's own approved members, seeds 4
+      fixed user profiles, creates 3 venues if none exist, requests 2 venue
+      reservations against upcoming events.
+  (also exports constant NEW_EVENT_PLAN)
+
+--- seedDemoContent.js ---
+  seedDemoContentIfNeeded()
+      Third-wave content seed (gated by "demoContentSeed" lock): Q&A on the
+      first 5 upcoming approved events, backfills/creates pending club-
+      membership applications with realistic form data, tops up student
+      profiles to at least 8.
+  seedNearCapacityEventIfNeeded()
+      NOT lock-gated. Finds the upcoming approved event with the most
+      registrations and sets its maxAttendees to registrationCount + 2.
+      Guarded by the nearCapacityDemo marker field — runs at most once ever.
+  seedRejectionFeedbackIfNeeded()
+      NOT lock-gated. Backfills an event_approvals rejection record (with
+      feedback, reviewed by the university admin) for the two seeded
+      rejected events. Guarded per-event by checking for an existing record.
+  backfillEventCapacityIfNeeded()
+      NOT lock-gated. Sets maxAttendees on any seed event (matched by title
+      against EVENT_PLAN + NEW_EVENT_PLAN) still missing the field.
+  backfillEventDescriptionsIfNeeded()
+      NOT lock-gated. Replaces the old generic "<title> — hosted by <club>."
+      auto-description with the real per-event description now defined on
+      each seed plan entry. Guarded by matching that exact old pattern.
+
+--- usersStore.js ---
+  seedUsersIfEmpty()
+      Upserts the fixed MOCK_USERS accounts (u1-u5), seeds base clubs if
+      empty, then runs the full seed chain in order: seedDemoDataIfNeeded
+      -> seedExpandedDataIfNeeded -> seedDemoContentIfNeeded ->
+      backfillEventCapacityIfNeeded -> backfillEventDescriptionsIfNeeded ->
+      seedNearCapacityEventIfNeeded -> seedRejectionFeedbackIfNeeded, each
+      independently try/caught. Called from AuthContext on mount.
+  getAllUsers()
+  usernameExists(username)
+  findUserByCredentials(username, password)
+  createUserByAdmin({ name, username, phone, role, clubId, universityId })
+      New accounts start on default password "12345"; assigns as a club's
+      admin if role is Club Admin (rejects if that club already has one).
+  getUsersByIds(ids)
+      Batches Firestore's 30-id "in" query limit.
+  deleteUser(userId)
+  changePassword(userId, newPassword)
+
+--- venueReservationsStore.js ---
+  requestVenueReservation({ eventId, venueId, startTime, endTime })
+      Checks for a time-overlap conflict first.
+  hasConflict(venueId, startTime, endTime)
+  getReservationsByVenue(venueId)
+  getReservationsByEvent(eventId)
+  getAllVenueReservations()
+
+--- venuesStore.js ---
+  createVenue({ name, capacity, location })   - status: "available"
+  getVenueById(id)
+  getAllVenues()
+
+--- src/firebase/firestoreHelpers.js (generic helpers underlying every store) ---
+  generateId(prefix)                          - "<prefix>_<Date.now()>_<rand 0-999>"
+  createDoc(collectionName, id, data)         - setDoc at a specific id
+  getDocById(collectionName, id)              - null if not found
+  getAllDocs(collectionName)
+  getDocsWhere(collectionName, field, operator, value)
+
+
+================================================================================
+6. ALL COMPONENTS WITH PROPS
+================================================================================
+
+Avatar.jsx (default export)
+  { name, size = "md" /* "sm"|"md"|"lg" */, imageUrl, color }
+  Renders an image if imageUrl is given, else initials on a colored circle
+  (color falls back to colorForName(name)).
+
+CapacityBar.jsx (default export)
+  { registrationCount, maxAttendees }
+  Returns null unless both are numbers and maxAttendees > 0. 6px bar,
+  --bg-subtle track with a --border outline, fill color steps from --accent
+  to --warning (>80%) to --accent-dark (100% full).
+
+CheckInScanner.jsx (default export)
+  { events, scannedBy, emptyEventsMessage }
+  Event <select> + QRScanner + session scan log. Shared by both the Event
+  Staff dashboard (all approved upcoming events) and Club Admin dashboard
+  (only that club's own events) — callers pass the already-filtered list.
+
+ClubApplicationModal.jsx (default export)
+  { open, club, userId, onClose, onSuccess }
+  Self-contained membership application form (GPA, major, faculty, credit
+  hours, skills, why, availability). Calls requestToJoinClub itself.
+
+ClubCard.jsx (default export)
+  { club, memberCount = 0, membershipStatus = "none" /* none|requesting|
+    pending|approved */, onRequest }
+  Cover image, name, description, member count, status-aware Join CTA.
+
+ConfirmDialog.jsx (default export)
+  { open, title, description, confirmLabel = "Confirm",
+    cancelLabel = "Cancel", danger = true, busy = false, onConfirm, onCancel }
+  Controlled modal replacing window.confirm() for destructive actions.
+
+EmptyState.jsx (default export)
+  { title, description, action }
+  Generic empty-list placeholder with an optional action node (e.g. a Link).
+
+ErrorState.jsx (default export)
+  { title = "Something went wrong",
+    description = "We couldn't load this page. Check your connection and try again.",
+    onRetry }
+  Shown in place of a page's content when its initial fetch throws.
+
+EventCard.jsx (default export)
+  { event, clubName, status = "register" /* register|registering|registered|
+    attended|missed|pending|readonly|full */, onRegister, registrationCount }
+  Cover image, club/date pills, spots-left badge, title, description,
+  CapacityBar, status-aware CTA button.
+
+Logo.jsx
+  default export Logo({ to = "/dashboard" })      - full brand lockup (DotMark + "Campus Events")
+  named export DotMark({ className = "" })        - HTU dot-grid mark alone (used standalone on Login's brand panel)
+
+OnboardingTour.jsx (default export)
+  { open, steps, onFinish, onSkip }
+  Custom spotlight tour (no external library); steps come from
+  ONBOARDING_STEPS keyed by role. target: null renders a centered card.
+
+OutlookOtpToast.jsx (default export) — DEFINED BUT NOT CURRENTLY USED ANYWHERE
+  { email, code, onClose }
+  Simulated Outlook/email OTP notification. Login.jsx currently only uses
+  SmsOtpToast (phone-based); this component has no import references
+  anywhere else in the codebase.
+
+PageShell.jsx (default export)
+  { title, subtitle, actions, children, maxWidth = "max-w-6xl" }
+  Standard authenticated-page wrapper: renders TopBar + a heading block +
+  a max-width content area. Used by most pages except the hero-image ones
+  (EventDetail, ClubProfile), which lay out TopBar manually instead.
+
+ProtectedRoute.jsx (default export)
+  { children, roles }
+  See section 3 for behavior.
+
+QRCodeModal.jsx (default export)
+  { open, value, title, subtitle, onClose }
+  Full-screen ticket QR presentation (fixed light styling, not theme-aware
+  — intentional so it's always readable by a scanner).
+
+QRScanner.jsx (default export)
+  { enabled, onDecode }
+  Native getUserMedia + jsQR scanner (no third-party camera UI library, for
+  iOS Safari compatibility). onDecode(decodedText) may return "valid" (green
+  flash + double-pulse vibration), any other truthy value (red flash + long
+  vibration), or a falsy value to skip feedback (e.g. a deduped repeat scan).
+
+SearchOverlay.jsx (default export)
+  { open, onClose, initialQuery = "" }
+  Full-width overlay; fetches all events + clubs once on open, then filters
+  both arrays in memory per keystroke (title/description or name/description
+  substring match, case-insensitive, max 8 results each).
+
+Skeleton.jsx
+  default export Skeleton({ className = "" })     - single shimmer block
+  named export CardSkeleton()                      - no props
+  named export StatCardSkeleton()                  - no props
+  named export RowSkeleton()                        - no props
+
+SmsOtpToast.jsx (default export)
+  { phone, code, onClose }
+  Simulated SMS notification shown during the Login OTP step.
+
+StatCard.jsx (default export)
+  { label, value, trend /* { delta, direction: "up"|"down" } */, icon }
+  Dashboard summary number tile.
+
+TopBar.jsx (default export)
+  No props (reads user/theme/onboarding from context).
+  Sticky header: mobile menu button, Logo, desktop search input, role-based
+  NAV_LINKS, mobile search button, help ("?") button, theme toggle, account
+  menu (Profile / Sign out), mobile drawer nav, SearchOverlay.
+
+
+================================================================================
+7. ALL PAGES WITH ROUTES
+================================================================================
+
+Page                    | File                          | Route(s)
+------------------------|-------------------------------|---------------------------
+Login                   | pages/Login.jsx                | /login
+Unauthorized            | pages/Unauthorized.jsx         | /unauthorized
+Dashboard               | pages/Dashboard.jsx            | /dashboard
+Profile                 | pages/Profile.jsx              | /profile
+ClubProfile             | pages/ClubProfile.jsx          | /club/:clubId
+EventDetail             | pages/EventDetail.jsx          | /event/:eventId
+ManageClubs             | pages/ManageClubs.jsx          | /admin/clubs
+ManageUsers             | pages/ManageUsers.jsx          | /admin/users
+ApproveEvents           | pages/ApproveEvents.jsx        | /admin/events
+ProposeEvent            | pages/ProposeEvent.jsx         | /club/propose-event
+ManageClubMembers       | pages/ManageClubMembers.jsx    | /club/members
+BrowseClubs             | pages/BrowseClubs.jsx          | /student/clubs
+BrowseEvents            | pages/BrowseEvents.jsx         | /student/events
+MyRegistrations         | pages/MyRegistrations.jsx      | /student/registrations
+EventHistory            | pages/EventHistory.jsx         | /student/history
+
+One-line summary of each:
+  Login.jsx               Two-step sign-in: username/password, then a 6-digit
+                           SMS OTP (SmsOtpToast shows the code for the demo).
+                           Also has a "Demo Accounts" dev quick-fill panel that
+                           runs the same OTP flow for any of the 5 fixed roles.
+  Unauthorized.jsx         Static "Access restricted" message + link back to
+                           /dashboard.
+  Dashboard.jsx            Renders a different sub-dashboard per role:
+                           StudentDashboard, ClubAdminDashboard,
+                           UniversityAdminDashboard, EventStaffDashboard,
+                           FacilityManagerDashboard. Also owns the
+                           OnboardingTour overlay.
+  Profile.jsx              Avatar/photo URL, bio, interests (add/remove tags),
+                           change-password form; student-only stats
+                           (clubs joined, events attended).
+  ClubProfile.jsx          Club hero image, editable name/description (club
+                           admin only), upcoming events (EventCard grid),
+                           member avatar grid, Join CTA (students).
+  EventDetail.jsx          Event hero image, capacity bar, registration CTA,
+                           "Who's going" avatar grid, Questions & Comments
+                           (post + club-admin answer flow).
+  ManageClubs.jsx          Create clubs, assign an unassigned Club Admin at
+                           creation time, search/filter, delete (with confirm).
+  ManageUsers.jsx          Provision accounts (any role, default password
+                           "12345"), search/filter by role, delete (confirm).
+  ApproveEvents.jsx        Pending/Approved/Rejected event tabs, optional
+                           feedback textarea, Approve/Reject actions
+                           (writes event_approvals + updates event status).
+  ProposeEvent.jsx         Event proposal form (title, description, date,
+                           time, location, maxAttendees); lists the club's
+                           own proposals with status and, for rejected ones,
+                           the reviewer's feedback.
+  ManageClubMembers.jsx    Pending requests (expandable to show full
+                           application data) with Approve/Reject; approved
+                           members list with search + Remove (confirm).
+  BrowseClubs.jsx          Searchable club grid with real per-club approved
+                           member counts and membership-status-aware CTAs.
+  BrowseEvents.jsx         Upcoming/Past tabs + date-range filter; EventCard
+                           grid with live registration counts.
+  MyRegistrations.jsx      "My Tickets": upcoming tickets (QR code, or a
+                           green checkmark if already checked in) + past
+                           tickets (Attended/Missed).
+  EventHistory.jsx         Read-only past-event history list (not fully
+                           re-read this pass; role: student).
+
+
+================================================================================
+8. FULL variables.css CONTENT (src/styles/variables.css)
+================================================================================
+
+/* Dual-mode design token system. Light values live on :root; dark values
+   override them under [data-theme="dark"] on <html> (see ThemeContext). */
+:root {
+  --bg: #F8F7F5;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #F1F0EE;
+  --text: #111111;
+  --text-muted: #6B6B6B;
+  --text-faint: #ADADAD;
+  --border: #E2E0DC;
+
+  --accent: #D62828;
+  --accent-dark: #B01E1E;
+  --accent-bg: #FDF0F0;
+  --accent-border: #F5CECE;
+
+  --success: #2D6A4F;
+  --success-bg: #EAF4EE;
+  --warning: #92400E;
+  --warning-bg: #FEF3C7;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.14);
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* legacy alias kept so any not-yet-migrated component still renders */
+  --surface: var(--bg-card);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0F0F0F;
+  --bg-card: #1A1A1A;
+  --bg-subtle: #242424;
+  --text: #F0EFED;
+  --text-muted: #909090;
+  --text-faint: #555555;
+  --border: #2E2E2E;
+
+  --accent: #E63535;
+  --accent-dark: #C02020;
+  --accent-bg: #1F1010;
+  --accent-border: #3D1515;
+
+  --success: #4ADE80;
+  --success-bg: #052E16;
+  --warning: #FCD34D;
+  --warning-bg: #1C1204;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.65);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg: #0F0F0F;
+    --bg-card: #1A1A1A;
+    --bg-subtle: #242424;
+    --text: #F0EFED;
+    --text-muted: #909090;
+    --text-faint: #555555;
+    --border: #2E2E2E;
+
+    --accent: #E63535;
+    --accent-dark: #C02020;
+    --accent-bg: #1F1010;
+    --accent-border: #3D1515;
+
+    --success: #4ADE80;
+    --success-bg: #052E16;
+    --warning: #FCD34D;
+    --warning-bg: #1C1204;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.65);
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.font-serif {
+  font-family: "Times New Roman", Times, serif;
+}
+
+(src/index.css contains only: @import "tailwindcss"; — all design tokens
+live in variables.css above, imported separately in main.jsx.)
+
+
+================================================================================
+9. ALL CONTEXT FILES (src/context/*.jsx)
+================================================================================
+
+--- AuthContext.jsx ---
+  Exports: AuthProvider, useAuth()
+  State: user (session user object, password stripped), loading
+  localStorage key: "campus_events_session" (session only, not the DB)
+  On mount: calls seedUsersIfEmpty() (populates Firestore with demo data
+  once), then restores any saved session from localStorage.
+  API: { user, login(username, password), logout(), loading,
+         changePassword(newPassword) }
+  login() looks up findUserByCredentials, strips the password field before
+  storing the session. changePassword() writes to Firestore via
+  changePasswordInDb but does NOT touch the local session's password
+  field (which was never stored there).
+
+--- OnboardingContext.jsx ---
+  Exports: OnboardingProvider, useOnboarding()
+  State: pendingStart (boolean)
+  API: { pendingStart, requestTour(), clearPendingStart() }
+  Coordinates the "?" button in TopBar (present on every page) with the
+  tour overlay, which only lives on Dashboard.jsx (the one page guaranteed
+  to contain every role's tour targets). Clicking "?" sets pendingStart;
+  Dashboard notices it once its own data has loaded and opens the tour.
+
+--- ThemeContext.jsx ---
+  Exports: ThemeProvider, useTheme()
+  State: theme ("light" | "dark"), initialized from localStorage("theme")
+  or prefers-color-scheme media query.
+  API: { theme, toggleTheme() }
+  Effect: sets document.documentElement's data-theme attribute and
+  persists the choice to localStorage on every change.
+
+--- ToastContext.jsx ---
+  Exports: ToastProvider, useToast()
+  State: toasts[] (each { id, type, message })
+  API: { success(message), error(message), info(message) }
+  Auto-dismisses each toast after 4000ms. Renders a fixed top-right stack;
+  each ToastItem has type-specific icon/color (success ✓ green, error ✕
+  red/accent, info "i" blue) and a manual dismiss button.
+
+All four provider hooks carry:
+  // eslint-disable-next-line react-refresh/only-export-components
+  directly above their hook export, since each file intentionally
+  co-locates the Provider and its hook (splitting would add a file for no
+  behavioral benefit).
+
+
+================================================================================
+10. SEED FILES SUMMARY
+================================================================================
+
+Three-wave seed pipeline plus later backfill/adjustment steps, all invoked
+from usersStore.js's seedUsersIfEmpty(), itself called once from
+AuthContext's mount effect. Each wave is independently try/caught so one
+failing step never blocks the rest of the chain.
+
+WAVE 1 — seedDemoData.js (seedDemoDataIfNeeded, lock: "demoDataSeed")
+  Creates the foundational dataset:
+    - Ensures Photography Club + Debate Club exist (REQUIRED_BASE_CLUBS),
+      then adds 7 more (NEW_CLUB_CANDIDATES): Coding & AI Club, Music
+      Society, Entrepreneurship Club, Environmental Club, Drama & Theatre
+      Club, Chess Club, Community Volunteering Club.
+    - Assigns a newly-created Club Admin account to every club still
+      missing one.
+    - Creates 2 extra Event Staff + 2 extra Facility Manager accounts.
+    - Creates 100 students, round-robined across every club with an
+      approved membership each.
+    - Creates the 10 EVENT_PLAN events (6 approved, 2 pending, 2 rejected)
+      with real descriptions; approved events get 8 registrations each
+      pulled from that club's own seeded students.
+  Guarded by an atomic runTransaction lock (survives React StrictMode's
+  double-invoke).
+
+WAVE 2 — seedExpanded.js (seedExpandedDataIfNeeded, lock: "expandedDataSeed")
+  Skipped outright if >=15 events already exist (MIN_EVENTS_BEFORE_SKIP).
+    - Backfills startTime/endTime/location/maxAttendees onto any
+      pre-existing event missing them.
+    - Creates 8 NEW_EVENT_PLAN events (3 past with simulated 60-80%
+      attendance/check-ins, 5 upcoming), each with real descriptions and
+      registrations pulled from that club's own approved members.
+    - Seeds 4 fixed user profiles (u1-u4).
+    - Creates 3 venues (Main Auditorium, Room 204, Outdoor Plaza) if none
+      exist.
+    - Requests 2 venue reservations against upcoming NEW_EVENT_PLAN events.
+
+WAVE 3 — seedDemoContent.js (seedDemoContentIfNeeded, lock: "demoContentSeed")
+  Presentation-readiness content:
+    - Q&A on the first 5 upcoming approved events (mix of answered
+      questions, unanswered questions, and plain comments, English + some
+      Arabic).
+    - Backfills applicationData onto any pending membership missing it,
+      then creates a couple of fresh pending applications per admin-owned
+      club (first 3) so there's always something to review live.
+    - Tops up student profiles to at least 8 total.
+
+POST-WAVE FIXES (seedDemoContent.js, NOT lock-gated — self-guarded per item,
+so each can retroactively repair data written before its own guard logic
+existed, unlike the three lock-gated waves above):
+    - backfillEventCapacityIfNeeded() — fills in maxAttendees on any
+      EVENT_PLAN/NEW_EVENT_PLAN event still missing it entirely.
+    - backfillEventDescriptionsIfNeeded() — replaces the old generic
+      "<title> — hosted by <club>." description with the real per-event one.
+    - seedNearCapacityEventIfNeeded() — sets the busiest upcoming event's
+      maxAttendees to registrationCount + 2 (near-full capacity bar for the
+      demo); marked via nearCapacityDemo so it only ever runs once.
+    - seedRejectionFeedbackIfNeeded() — backfills an event_approvals
+      rejection record (with real feedback text) for the two seeded
+      rejected events, so ProposeEvent.jsx's "Reviewer feedback" block has
+      something to show.
+
+================================================================================
+END OF SNAPSHOT
+================================================================================
