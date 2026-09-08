@@ -67,8 +67,19 @@ export default function Login() {
   async function submitCredentials(candidateUsername, candidatePassword) {
     setError("");
     setChecking(true);
-    const found = await findUserByCredentials(candidateUsername, candidatePassword);
-    setChecking(false);
+    let found;
+    try {
+      found = await findUserByCredentials(candidateUsername, candidatePassword);
+    } catch (err) {
+      // A Firestore failure (expired security rules, offline, quota exhausted)
+      // used to leave the button stuck on "Checking..." with no message at all,
+      // because the setChecking(false) below was never reached.
+      console.error("Sign-in lookup failed:", err);
+      setError("Could not reach the database. Please check your connection and try again.");
+      return;
+    } finally {
+      setChecking(false);
+    }
 
     if (!found) {
       setError("Incorrect username or password.");
