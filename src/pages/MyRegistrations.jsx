@@ -6,6 +6,7 @@ import { getRegistrationsByUser } from "../data/registrationsStore";
 import { getAllEvents } from "../data/eventsStore";
 import { getAllClubs } from "../data/clubsStore";
 import { getAllCheckins } from "../data/checkinsStore";
+import { isEventUpcoming, isEventPast } from "../utils/eventTiming";
 import PageShell from "../components/PageShell";
 import EmptyState from "../components/EmptyState";
 import ErrorState from "../components/ErrorState";
@@ -62,13 +63,12 @@ export default function MyRegistrations() {
     return clubs.find((c) => c.id === clubId)?.name || "Unknown club";
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const withEvent = registrations.map((r) => ({ reg: r, event: eventFor(r.eventId) })).filter((x) => x.event);
   const upcoming = withEvent
-    .filter((x) => x.event.proposedDate >= today)
+    .filter((x) => isEventUpcoming(x.event))
     .sort((a, b) => new Date(a.event.proposedDate) - new Date(b.event.proposedDate));
   const past = withEvent
-    .filter((x) => x.event.proposedDate < today)
+    .filter((x) => isEventPast(x.event))
     .sort((a, b) => new Date(b.event.proposedDate) - new Date(a.event.proposedDate));
 
   return (

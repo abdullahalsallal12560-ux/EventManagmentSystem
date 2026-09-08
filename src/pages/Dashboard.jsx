@@ -29,6 +29,7 @@ import {
 import { getAllEvents, getEventsByClub, getEventsByStatus, EVENT_STATUS } from "../data/eventsStore";
 import { getRegistrationsByUser, registerForEvent, getAllRegistrations } from "../data/registrationsStore";
 import { getAllCheckins } from "../data/checkinsStore";
+import { isEventUpcoming } from "../utils/eventTiming";
 import { getAllUsers, getUsersByIds } from "../data/usersStore";
 import { getAllVenues } from "../data/venuesStore";
 import { getAllVenueReservations } from "../data/venueReservationsStore";
@@ -254,7 +255,6 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
   }
 
   const { clubs, myMemberships, allEvents, myRegistrations, allCheckins, registrationCounts, clubMemberCounts } = data;
-  const today = new Date().toISOString().slice(0, 10);
 
   const approvedMemberships = myMemberships.filter((m) => m.status === MEMBERSHIP_STATUS.APPROVED);
   const myRegistrationIds = new Set(myRegistrations.map((r) => r.id));
@@ -262,7 +262,7 @@ function StudentDashboard({ data, loading, user, onRefresh }) {
 
   const registeredEventIds = new Set(myRegistrations.filter((r) => r.status !== "cancelled").map((r) => r.eventId));
   const upcomingApproved = allEvents.filter(
-    (e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today
+    (e) => e.status === EVENT_STATUS.APPROVED && isEventUpcoming(e)
   );
   const upcomingCount = upcomingApproved.filter((e) => registeredEventIds.has(e.id)).length;
 
@@ -407,9 +407,8 @@ function ClubAdminDashboard({ data, loading, busyId, onDecision, user }) {
   const pending = memberships.filter((m) => m.status === MEMBERSHIP_STATUS.PENDING);
   const recentEvents = [...events].sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate)).slice(0, 3);
 
-  const today = new Date().toISOString().slice(0, 10);
   const scannableEvents = events
-    .filter((e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today)
+    .filter((e) => e.status === EVENT_STATUS.APPROVED && isEventUpcoming(e))
     .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate));
 
   function userFor(userId) {
@@ -604,9 +603,8 @@ function EventStaffDashboard({ user }) {
   useEffect(() => {
     async function loadEvents() {
       const approved = await getEventsByStatus(EVENT_STATUS.APPROVED);
-      const today = new Date().toISOString().slice(0, 10);
       const upcoming = approved
-        .filter((e) => e.proposedDate >= today)
+        .filter((e) => isEventUpcoming(e))
         .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate));
       setEvents(upcoming);
     }

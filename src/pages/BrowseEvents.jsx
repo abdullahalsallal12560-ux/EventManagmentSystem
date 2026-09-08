@@ -5,6 +5,7 @@ import { getEventsByStatus, EVENT_STATUS } from "../data/eventsStore";
 import { getAllClubs } from "../data/clubsStore";
 import { registerForEvent, getRegistrationsByUser, getAllRegistrations } from "../data/registrationsStore";
 import { getAllCheckins } from "../data/checkinsStore";
+import { isEventUpcoming, isEventPast, isEventOpenForRegistration } from "../utils/eventTiming";
 import PageShell from "../components/PageShell";
 import EventCard from "../components/EventCard";
 import EmptyState from "../components/EmptyState";
@@ -104,17 +105,19 @@ export default function BrowseEvents() {
     loadData();
   }
 
-  const today = new Date().toISOString().slice(0, 10);
   const upcomingEvents = events
-    .filter((e) => e.proposedDate >= today && withinFilter(e.proposedDate, dateFilter))
+    .filter((e) => isEventUpcoming(e) && withinFilter(e.proposedDate, dateFilter))
     .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate));
   const pastEvents = events
-    .filter((e) => e.proposedDate < today && withinFilter(e.proposedDate, dateFilter))
+    .filter((e) => isEventPast(e) && withinFilter(e.proposedDate, dateFilter))
     .sort((a, b) => new Date(b.proposedDate) - new Date(a.proposedDate));
 
   function statusForUpcoming(event) {
     if (busyEventId === event.id) return "registering";
-    return registrationFor(event.id) ? "registered" : "register";
+    if (registrationFor(event.id)) return "registered";
+    // Belt and braces: the tab filter already keeps past events out of this
+    // list, but a card must never offer a CTA that the write path rejects.
+    return isEventOpenForRegistration(event) ? "register" : "missed";
   }
 
   function statusForPast(event) {

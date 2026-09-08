@@ -7,6 +7,7 @@ import { ROLES } from "../data/mockUsers";
 import { getClubById, updateClub } from "../data/clubsStore";
 import { getMembershipsByClub, MEMBERSHIP_STATUS } from "../data/clubMembershipsStore";
 import { getEventsByClub, EVENT_STATUS } from "../data/eventsStore";
+import { isEventUpcoming } from "../utils/eventTiming";
 import { getUsersByIds } from "../data/usersStore";
 import { registerForEvent, getRegistrationsByUser, getAllRegistrations } from "../data/registrationsStore";
 import { placeholderImageUrl } from "../data/placeholderImages";
@@ -120,9 +121,8 @@ export default function ClubProfile() {
   }
 
   const isAdmin = club && user && club.adminId === user.id;
-  const today = new Date().toISOString().slice(0, 10);
   const upcomingEvents = events
-    .filter((e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today)
+    .filter((e) => e.status === EVENT_STATUS.APPROVED && isEventUpcoming(e))
     .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate))
     .slice(0, 3);
 

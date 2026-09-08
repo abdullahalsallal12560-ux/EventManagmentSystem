@@ -1,0 +1,71 @@
+rules_version = '2';
+
+// Campus Events - Firestore security rules.
+//
+// The only rule here that actually restricts anything is on `registrations`:
+// a registration document may not be created for an event that has already
+// taken place, or for one that is not approved. This mirrors
+// registrationBlockReason() in src/utils/eventTiming.js, so a direct write
+// that bypasses the user interface is rejected by the database as well.
+//
+// Every other collection is left open, which matches the pilot posture
+// documented as a High priority risk in section 2.4 of the SDD. Note there is
+// deliberately NO `match /{document=**}` catch-all: in Firestore, allow rules
+// are OR-ed together, so a permissive catch-all would silently cancel out the
+// registration restriction below.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers -------------------------------------------------------
+    // request.time is UTC. The campus operates on Asia/Amman (UTC+3), which
+    // is the same offset the client uses via Intl in eventTiming.js, so both
+    // sides agree on when "today" ends.
+    function campusNow() {
+      return request.time + duration.value(3, 'h');
+    }
+
+    function pad(n) {
+      return n < 10 ? '0' + string(n) : string(n);
+    }
+
+    // Rebuilds the campus date as a YYYY-MM-DD string so it can be compared
+    // directly against the stored `proposedDate` field, which is a string.
+    function campusToday() {
+      return string(campusNow().year()) + '-'
+           + pad(campusNow().month()) + '-'
+           + pad(campusNow().day());
+    }
+
+    function eventData(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId)).data;
+    }
+
+    function eventIsOpenForRegistration(eventId) {
+      return exists(/databases/$(database)/documents/events/$(eventId))
+             && eventData(eventId).status == 'approved'
+             && eventData(eventId).proposedDate >= campusToday();
+    }
+
+    // ---- the one restricted collection ---------------------------------
+    match /registrations/{registrationId} {
+      allow read: if true;
+      allow create: if request.resource.data.eventId is string
+                    && eventIsOpenForRegistration(request.resource.data.eventId);
+      allow update, delete: if true;
+    }
+
+    // ---- everything else: open, as per the pilot posture ----------------
+    match /users/{doc}              { allow read, write: if true; }
+    match /clubs/{doc}              { allow read, write: if true; }
+    match /club_memberships/{doc}   { allow read, write: if true; }
+    match /events/{doc}             { allow read, write: if true; }
+    match /event_approvals/{doc}    { allow read, write: if true; }
+    match /venues/{doc}             { allow read, write: if true; }
+    match /venue_reservations/{doc} { allow read, write: if true; }
+    match /checkins/{doc}           { allow read, write: if true; }
+    match /profiles/{doc}           { allow read, write: if true; }
+    match /event_comments/{doc}     { allow read, write: if true; }
+    match /_seed_locks/{doc}        { allow read, write: if true; }
+  }
+}

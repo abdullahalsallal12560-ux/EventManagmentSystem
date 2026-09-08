@@ -1,6 +1,7 @@
 import { COLLECTIONS } from "../firebase/collections";
 import { createDoc, getDocById, getAllDocs, getDocsWhere, generateId } from "../firebase/firestoreHelpers";
 import { getEventById } from "./eventsStore";
+import { registrationBlockReason } from "../utils/eventTiming";
 
 // Fields: id (PK), eventId (FK), userId (FK), qrCode, status, registeredAt
 export async function registerForEvent({ eventId, userId }) {
@@ -9,6 +10,15 @@ export async function registerForEvent({ eventId, userId }) {
     getDocsWhere(COLLECTIONS.REGISTRATIONS, "eventId", "==", eventId),
   ]);
   const activeRegistrations = already.filter((r) => r.status !== "cancelled");
+
+  // Gate the write itself, not just the button. Hiding the CTA in the UI is
+  // not enough: EventDetail used to render a working Register button for a
+  // past event, and any caller reaching this function directly bypassed the
+  // list filtering in BrowseEvents entirely.
+  const blocked = registrationBlockReason(event);
+  if (blocked) {
+    return { success: false, error: blocked };
+  }
 
   const duplicate = activeRegistrations.find((r) => r.userId === userId);
   if (duplicate) {

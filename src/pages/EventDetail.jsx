@@ -6,6 +6,7 @@ import { ROLES } from "../data/mockUsers";
 import { getEventById, EVENT_STATUS } from "../data/eventsStore";
 import { getClubById } from "../data/clubsStore";
 import { getRegistrationsByEvent, registerForEvent } from "../data/registrationsStore";
+import { registrationBlockReason } from "../utils/eventTiming";
 import { getUsersByIds } from "../data/usersStore";
 import { getCommentsByEvent, addComment, addAnswer, COMMENT_TYPE } from "../data/commentsStore";
 import { placeholderImageUrl } from "../data/placeholderImages";
@@ -87,6 +88,7 @@ export default function EventDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
+  const registrationBlocked = event ? registrationBlockReason(event) : null;
   const hasCapacity = event && typeof event.maxAttendees === "number";
   const spotsLeft = hasCapacity ? event.maxAttendees - registrations.length : null;
   const isFull = hasCapacity && spotsLeft <= 0;
@@ -208,9 +210,9 @@ export default function EventDetail() {
 
             <div className="mt-6">
               {user.role === ROLES.STUDENT ? (
-                event.status !== EVENT_STATUS.APPROVED ? (
+                registrationBlocked && !myRegistration ? (
                   <span className="inline-block text-sm font-medium px-4 py-2 rounded-lg" style={{ background: "var(--bg-subtle)", color: "var(--text-faint)" }}>
-                    Registration opens once this event is approved
+                    {registrationBlocked}
                   </span>
                 ) : myRegistration ? (
                   <span className="inline-block text-sm font-medium px-4 py-2 rounded-lg" style={{ background: "var(--success-bg)", color: "var(--success)" }}>

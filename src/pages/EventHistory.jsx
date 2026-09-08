@@ -5,6 +5,7 @@ import { getRegistrationsByUser } from "../data/registrationsStore";
 import { getAllEvents } from "../data/eventsStore";
 import { getAllClubs } from "../data/clubsStore";
 import { getAllCheckins } from "../data/checkinsStore";
+import { isEventPast } from "../utils/eventTiming";
 import PageShell from "../components/PageShell";
 import StatCard from "../components/StatCard";
 import EmptyState from "../components/EmptyState";
@@ -32,13 +33,12 @@ export default function EventHistory() {
         getAllCheckins(),
       ]);
 
-      const today = new Date().toISOString().slice(0, 10);
       const registrationIds = new Set(registrations.map((r) => r.id));
       const checkedInIds = new Set(checkins.filter((c) => registrationIds.has(c.registrationId)).map((c) => c.registrationId));
 
       const pastRows = registrations
         .map((r) => ({ reg: r, event: events.find((e) => e.id === r.eventId) }))
-        .filter((x) => x.event && x.event.proposedDate < today)
+        .filter((x) => x.event && isEventPast(x.event))
         .map((x) => ({ ...x, attended: checkedInIds.has(x.reg.id) }))
         .sort((a, b) => new Date(b.event.proposedDate) - new Date(a.event.proposedDate));
 

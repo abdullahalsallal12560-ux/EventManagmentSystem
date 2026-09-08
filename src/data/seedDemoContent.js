@@ -8,6 +8,7 @@
 import { db } from "../firebase/config";
 import { doc, getDoc, setDoc, updateDoc, runTransaction } from "firebase/firestore";
 import { COLLECTIONS } from "../firebase/collections";
+import { isEventUpcoming } from "../utils/eventTiming";
 import { getAllDocs } from "../firebase/firestoreHelpers";
 import { ROLES } from "./mockUsers";
 import { getAllUsers } from "./usersStore";
@@ -150,9 +151,8 @@ export async function seedDemoContentIfNeeded() {
 async function seedEventComments(allEvents, allClubs, students) {
   if (students.length === 0) return;
 
-  const today = new Date().toISOString().slice(0, 10);
   const upcomingEvents = allEvents
-    .filter((e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today)
+    .filter((e) => e.status === EVENT_STATUS.APPROVED && isEventUpcoming(e))
     .sort((a, b) => new Date(a.proposedDate) - new Date(b.proposedDate))
     .slice(0, 5);
 
@@ -281,8 +281,7 @@ export async function seedNearCapacityEventIfNeeded() {
   const allEvents = await getAllEvents();
   if (allEvents.some((e) => e.nearCapacityDemo)) return;
 
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = allEvents.filter((e) => e.status === EVENT_STATUS.APPROVED && e.proposedDate >= today);
+  const upcoming = allEvents.filter((e) => e.status === EVENT_STATUS.APPROVED && isEventUpcoming(e));
   if (upcoming.length === 0) return;
 
   const registrationLists = await Promise.all(upcoming.map((e) => getRegistrationsByEvent(e.id)));
